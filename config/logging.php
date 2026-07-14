@@ -4,7 +4,6 @@ use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
-use Yoeriboven\LaravelLogDb\DatabaseLogger;
 
 return [
 
@@ -19,7 +18,7 @@ return [
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'db'),
+    'default' => env('LOG_CHANNEL', 'stack'),
 
     /*
     |--------------------------------------------------------------------------
@@ -52,13 +51,6 @@ return [
     */
 
     'channels' => [
-        'db' => [
-            'driver'     => 'custom',
-            'via'        => DatabaseLogger::class,
-            'connection' => env('LOG_DB_CONNECTION'), // Optional, defaults to app's DB connection
-            'level'      => env('LOG_LEVEL', 'debug'), // Optional
-        ],
-        
         'stack' => [
             'driver' => 'stack',
             'channels' => explode(',', env('LOG_STACK', 'single')),

@@ -4,7 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
-use App\Http\Middleware\CheckTokenAndAddToHeaderMiddleware;
+use App\Http\Middleware\ValidateUrlTokenMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,11 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->api(prepend: [
-            CheckTokenAndAddToHeaderMiddleware::class
+        $middleware->web(prepend: [
+            ValidateUrlTokenMiddleware::class,
         ]);
 
-        $middleware->redirectGuestsTo('/login');
+        $middleware->api(prepend: [
+            ValidateUrlTokenMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         

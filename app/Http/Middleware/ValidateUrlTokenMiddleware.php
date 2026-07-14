@@ -5,9 +5,8 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-//use Illuminate\Support\Facades\Log;
 
-class CheckTokenAndAddToHeaderMiddleware
+class ValidateUrlTokenMiddleware
 {
     /**
      * Handle an incoming request.
@@ -16,11 +15,13 @@ class CheckTokenAndAddToHeaderMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $all = $request->all();
-        if (isset($all['_token'])) {
-            //Log::debug('token from http param', [$all['_token']]);
-            $request->headers->set('Authorization', sprintf('%s %s', 'Bearer', $all['_token']));
+        $configuredToken = (string) config('app.url_access_token', '');
+        $providedToken = (string) $request->query('token', '');
+
+        if ($configuredToken === '' || $providedToken === '' || !hash_equals($configuredToken, $providedToken)) {
+            abort(Response::HTTP_FORBIDDEN, 'Invalid or missing token.');
         }
+
         return $next($request);
     }
 }
