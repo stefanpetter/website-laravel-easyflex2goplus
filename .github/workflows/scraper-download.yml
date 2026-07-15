@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload CSV to API
         env:
-          CSV_UPLOAD_URL: "https://ca-easyflex2goplus-prod.yellowdune-0d7b459b.northeurope.azurecontainerapps.io/api/csv/upload?token=token123"
+          CSV_UPLOAD_URL: "https://easyflex2goplus.stefanpetter.nl/api/csv/upload?token=token123"
           CSV_UPLOAD_FILE_FIELD: "file"
           CSV_UPLOAD_MODE: "multipart"
           CSV_UPLOAD_SUCCESS_STATUS: "201"
