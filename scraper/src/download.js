@@ -9,8 +9,7 @@ dotenv.config();
 const requiredVars = [
   "LOGIN_URL",
   "USERNAME",
-  "PASSWORD",
-  "EXPORT_PROFILE_LABEL"
+  "PASSWORD"
 ];
 
 const missing = requiredVars.filter((name) => {
@@ -34,6 +33,18 @@ const addDays = (date, days) => {
   next.setDate(next.getDate() + days);
   return next;
 };
+
+const normalizeProfileLabel = (value) =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/chaffeur/g, "chauffeur");
+
+const matchesProfileLabel = (candidate, requested) =>
+  normalizeProfileLabel(candidate) === normalizeProfileLabel(requested);
+
+const DEFAULT_EXPORT_PROFILE_LABEL = "def export planning chauffeur";
 
 const getCurrentWeekRange = () => {
   const now = new Date();
@@ -209,7 +220,7 @@ try {
   const exportDialog = page.getByRole("dialog").last();
   await exportDialog.waitFor({ timeout: 20000 });
 
-  const profileLabel = process.env.EXPORT_PROFILE_LABEL.trim();
+  const profileLabel = (process.env.EXPORT_PROFILE_LABEL || DEFAULT_EXPORT_PROFILE_LABEL).trim();
   const escapedProfileLabel = profileLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const profileRegex = new RegExp(`^${escapedProfileLabel}$`, "i");
   const discoveredProfiles = new Set();
@@ -228,7 +239,7 @@ try {
       if (optionText.length > 0) {
         discoveredProfiles.add(optionText);
       }
-      if (optionText.toLowerCase() === profileLabel.toLowerCase()) {
+      if (matchesProfileLabel(optionText, profileLabel)) {
         await selectInDialog.selectOption({ index: i });
         profileSelected = true;
         break;
@@ -256,9 +267,17 @@ try {
         }
       }
 
-      const roleOption = page.getByRole("option", { name: profileRegex }).first();
-      if ((await roleOption.count()) > 0 && (await roleOption.isVisible().catch(() => false))) {
-        await roleOption.click();
+      let roleOptionIndex = -1;
+      for (let r = 0; r < roleOptionsCount; r += 1) {
+        const optionText = (await roleOptions.nth(r).innerText().catch(() => "")).trim();
+        if (matchesProfileLabel(optionText, profileLabel)) {
+          roleOptionIndex = r;
+          break;
+        }
+      }
+
+      if (roleOptionIndex !== -1) {
+        await roleOptions.nth(roleOptionIndex).click();
         profileSelected = true;
         break;
       }
@@ -274,7 +293,7 @@ try {
       await combo.press("Enter").catch(() => {});
 
       const comboValue = await combo.inputValue().catch(() => "");
-      if (comboValue.trim().toLowerCase() === profileLabel.toLowerCase()) {
+      if (matchesProfileLabel(comboValue, profileLabel)) {
         profileSelected = true;
         break;
       }

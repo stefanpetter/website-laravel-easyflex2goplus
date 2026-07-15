@@ -38,7 +38,7 @@ jobs:
           PLANNING_URL_BASE: ${{ secrets.PLANNING_URL_BASE }}
           PLANNING_V: ${{ secrets.PLANNING_V }}
           PLANNING_P: ${{ secrets.PLANNING_P }}
-          EXPORT_PROFILE_LABEL: ${{ secrets.EXPORT_PROFILE_LABEL }}
+          EXPORT_PROFILE_APPLY_DELAY_MS: "5000"
           HEADLESS: "true"
           WAIT_AFTER_LOGIN_MS: "5000"
           SCREENSHOT_AFTER_DOWNLOAD: "true"
