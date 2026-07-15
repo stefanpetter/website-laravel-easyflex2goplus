@@ -42,7 +42,7 @@ For your case:
 - `LOGIN_URL=https://uniepool.easyflex2go.nl/login`
 - `LOGIN_ROLE=Relatie`
 - `USE_PLANNING_CURRENT_WEEK=true`
-- `EXPORT_PROFILE_LABEL=test export planning chaffeur`
+- `EXPORT_PROFILE_LABEL=def export planning chauffeur`
 - Keep `HEADLESS=false` while validating flow
 
 When `USE_PLANNING_CURRENT_WEEK=true`, the script builds:

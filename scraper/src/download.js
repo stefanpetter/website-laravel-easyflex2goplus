@@ -9,10 +9,14 @@ dotenv.config();
 const requiredVars = [
   "LOGIN_URL",
   "USERNAME",
-  "PASSWORD"
+  "PASSWORD",
+  "EXPORT_PROFILE_LABEL"
 ];
 
-const missing = requiredVars.filter((name) => !process.env[name]);
+const missing = requiredVars.filter((name) => {
+  const value = process.env[name];
+  return !value || value.trim().length === 0;
+});
 if (missing.length > 0) {
   console.error(`Missing required env vars: ${missing.join(", ")}`);
   process.exit(1);
@@ -205,19 +209,25 @@ try {
   const exportDialog = page.getByRole("dialog").last();
   await exportDialog.waitFor({ timeout: 20000 });
 
-  const profileLabel = process.env.EXPORT_PROFILE_LABEL || "test export planning chaffeur";
+  const profileLabel = process.env.EXPORT_PROFILE_LABEL.trim();
   const escapedProfileLabel = profileLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const profileRegex = new RegExp(`^${escapedProfileLabel}$`, "i");
+  const discoveredProfiles = new Set();
 
   console.log(`Selecting export profile: ${profileLabel}...`);
   let profileSelected = false;
 
-  const selectInDialog = exportDialog.locator("select").first();
-  if ((await selectInDialog.count()) > 0) {
+  const selectsInDialog = exportDialog.locator("select");
+  const selectCount = await selectsInDialog.count();
+  for (let s = 0; s < selectCount && !profileSelected; s += 1) {
+    const selectInDialog = selectsInDialog.nth(s);
     const options = selectInDialog.locator("option");
     const optionsCount = await options.count();
     for (let i = 0; i < optionsCount; i += 1) {
       const optionText = (await options.nth(i).innerText()).trim();
+      if (optionText.length > 0) {
+        discoveredProfiles.add(optionText);
+      }
       if (optionText.toLowerCase() === profileLabel.toLowerCase()) {
         await selectInDialog.selectOption({ index: i });
         profileSelected = true;
@@ -227,34 +237,61 @@ try {
   }
 
   if (!profileSelected) {
-    const combo = exportDialog.getByRole("combobox").first();
-    if ((await combo.count()) > 0) {
-      await combo.click();
+    const combos = exportDialog.getByRole("combobox");
+    const comboCount = await combos.count();
+    for (let i = 0; i < comboCount && !profileSelected; i += 1) {
+      const combo = combos.nth(i);
+      if (!(await combo.isVisible().catch(() => false))) {
+        continue;
+      }
+
+      await combo.click().catch(() => {});
+
+      const roleOptions = page.getByRole("option");
+      const roleOptionsCount = await roleOptions.count();
+      for (let r = 0; r < roleOptionsCount; r += 1) {
+        const optionText = (await roleOptions.nth(r).innerText().catch(() => "")).trim();
+        if (optionText.length > 0) {
+          discoveredProfiles.add(optionText);
+        }
+      }
 
       const roleOption = page.getByRole("option", { name: profileRegex }).first();
       if ((await roleOption.count()) > 0 && (await roleOption.isVisible().catch(() => false))) {
         await roleOption.click();
         profileSelected = true;
+        break;
       }
 
-      if (!profileSelected) {
-        const textOption = page.getByText(profileRegex).first();
-        if ((await textOption.count()) > 0 && (await textOption.isVisible().catch(() => false))) {
-          await textOption.click();
-          profileSelected = true;
-        }
-      }
-
-      if (!profileSelected) {
-        await combo.fill(profileLabel).catch(() => {});
-        await combo.press("Enter").catch(() => {});
+      const textOption = page.getByText(profileRegex).first();
+      if ((await textOption.count()) > 0 && (await textOption.isVisible().catch(() => false))) {
+        await textOption.click();
         profileSelected = true;
+        break;
+      }
+
+      await combo.fill(profileLabel).catch(() => {});
+      await combo.press("Enter").catch(() => {});
+
+      const comboValue = await combo.inputValue().catch(() => "");
+      if (comboValue.trim().toLowerCase() === profileLabel.toLowerCase()) {
+        profileSelected = true;
+        break;
       }
     }
   }
 
   if (!profileSelected) {
-    throw new Error(`Could not select "${profileLabel}" in geselecteerde kolommen.`);
+    const discoveredList = [...discoveredProfiles].slice(0, 20).join(" | ");
+    throw new Error(
+      `Could not select "${profileLabel}" in geselecteerde kolommen. Found profiles/options: ${discoveredList || "(none detected)"}`
+    );
+  }
+
+  const profileApplyDelayMs = Number(process.env.EXPORT_PROFILE_APPLY_DELAY_MS || 2500);
+  if (profileApplyDelayMs > 0) {
+    console.log(`Waiting ${profileApplyDelayMs}ms for selected export profile columns to apply...`);
+    await page.waitForTimeout(profileApplyDelayMs);
   }
 
   console.log("Waiting for download to start...");

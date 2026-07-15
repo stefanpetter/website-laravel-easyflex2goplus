@@ -16,6 +16,10 @@ env:
   CONTAINER_APPS_ENVIRONMENT: ${{ vars.AZURE_CONTAINER_APPS_ENVIRONMENT }}
   ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
   ACR_REPOSITORY: ${{ vars.AZURE_ACR_REPOSITORY || 'easyflex2goplus-app' }}
+  STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
+  STORAGE_SHARE_NAME: ${{ vars.AZURE_STORAGE_SHARE_NAME }}
+  STORAGE_VOLUME_NAME: ${{ vars.AZURE_STORAGE_VOLUME_NAME || 'laravel-storage' }}
+  STORAGE_MOUNT_PATH: ${{ vars.AZURE_STORAGE_MOUNT_PATH || '/var/www/html/storage' }}
 
 jobs:
   deploy:
@@ -32,7 +36,7 @@ jobs:
 
           missing=0
 
-          for v in RESOURCE_GROUP CONTAINER_APP_NAME CONTAINER_APPS_ENVIRONMENT ACR_NAME ACR_REPOSITORY; do
+          for v in RESOURCE_GROUP CONTAINER_APP_NAME CONTAINER_APPS_ENVIRONMENT ACR_NAME ACR_REPOSITORY STORAGE_ACCOUNT_NAME STORAGE_SHARE_NAME STORAGE_VOLUME_NAME STORAGE_MOUNT_PATH; do
             if [ -z "${!v:-}" ]; then
               echo "Missing required GitHub variable: $v"
               missing=1
@@ -56,6 +60,11 @@ jobs:
 
           if [ -z "${{ secrets.APP_ENV_PROD }}" ]; then
             echo "Missing required secret: APP_ENV_PROD"
+            missing=1
+          fi
+
+          if [ -z "${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}" ]; then
+            echo "Missing required secret: AZURE_STORAGE_ACCOUNT_KEY"
             missing=1
           fi
 
@@ -115,12 +124,24 @@ jobs:
             IMAGE_REF="${{ steps.build.outputs.image_ref }}"
             LOGIN_SERVER="${{ steps.build.outputs.login_server }}"
 
+            echo "Ensuring Azure Files storage is configured on Container Apps environment..."
+            az containerapp env storage set \
+              --name "$CONTAINER_APPS_ENVIRONMENT" \
+              --resource-group "$RESOURCE_GROUP" \
+              --storage-name "$STORAGE_VOLUME_NAME" \
+              --azure-file-account-name "$STORAGE_ACCOUNT_NAME" \
+              --azure-file-account-key "${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}" \
+              --azure-file-share-name "$STORAGE_SHARE_NAME" \
+              --access-mode ReadWrite
+
             if az containerapp show --name "$CONTAINER_APP_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
               echo "Container App exists. Updating image."
               az containerapp update \
                 --name "$CONTAINER_APP_NAME" \
                 --resource-group "$RESOURCE_GROUP" \
-                --image "$IMAGE_REF"
+                --image "$IMAGE_REF" \
+                --set "template.volumes=[{\"name\":\"$STORAGE_VOLUME_NAME\",\"storageType\":\"AzureFile\",\"storageName\":\"$STORAGE_VOLUME_NAME\"}]" \
+                --set "template.containers[0].volumeMounts=[{\"volumeName\":\"$STORAGE_VOLUME_NAME\",\"mountPath\":\"$STORAGE_MOUNT_PATH\"}]"
             else
               echo "Container App not found. Creating it now."
 
@@ -137,6 +158,8 @@ jobs:
                 --image "$IMAGE_REF" \
                 --ingress external \
                 --target-port 80 \
+                --volume-mounts "$STORAGE_MOUNT_PATH=$STORAGE_VOLUME_NAME" \
+                --volumes "$STORAGE_VOLUME_NAME=AzureFile,storageName=$STORAGE_VOLUME_NAME" \
                 --registry-server "$LOGIN_SERVER" \
                 --registry-username "${{ secrets.ACR_USERNAME }}" \
                 --registry-password "${{ secrets.ACR_PASSWORD }}"

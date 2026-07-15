@@ -98,6 +98,10 @@ In GitHub repo settings -> Secrets and variables -> Actions -> Variables, add:
 - `AZURE_CONTAINER_APPS_ENVIRONMENT`
 - `AZURE_ACR_NAME`
 - `AZURE_ACR_REPOSITORY` (example: `easyflex2goplus-app`)
+- `AZURE_STORAGE_ACCOUNT_NAME`
+- `AZURE_STORAGE_SHARE_NAME`
+- `AZURE_STORAGE_VOLUME_NAME` (example: `laravel-storage`)
+- `AZURE_STORAGE_MOUNT_PATH` (use `/var/www/html/storage` for Laravel)
 
 ### 3) Configure GitHub secrets
 
@@ -107,6 +111,7 @@ Add these secrets:
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
 - `APP_ENV_PROD` (full content of production `.env` file)
+- `AZURE_STORAGE_ACCOUNT_KEY`
 
 For first automatic container app creation only, also add:
 
@@ -117,6 +122,18 @@ You can get ACR credentials with:
 
 ```bash
 az acr credential show -n <your-acr-name>
+```
+
+You can get the storage account key with:
+
+```bash
+az storage account keys list -g <your-resource-group> -n <your-storage-account-name> --query "[0].value" -o tsv
+```
+
+If the file share does not exist yet, create it once:
+
+```bash
+az storage share-rm create --resource-group <your-resource-group> --storage-account <your-storage-account-name> --name <your-share-name>
 ```
 
 ### 4) Configure Azure login from GitHub (OIDC)
