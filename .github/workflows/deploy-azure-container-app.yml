@@ -83,8 +83,6 @@ jobs:
           inlineScript: |
             set -euo pipefail
             az config set extension.use_dynamic_install=yes_without_prompt
-            az provider register --namespace Microsoft.App
-            az provider register --namespace Microsoft.OperationalInsights
             az extension add --name containerapp --upgrade
 
       - name: Build and push image to ACR
