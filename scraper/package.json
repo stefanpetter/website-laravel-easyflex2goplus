@@ -1,0 +1,19 @@
+{
+  "name": "web-download-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automate login and file download from websites without APIs using Playwright",
+  "type": "module",
+  "scripts": {
+    "download": "node src/download.js",
+    "convert:csv": "node src/convert-xlsx-to-csv.js",
+    "upload:csv": "node src/upload-csv.js",
+    "download:debug": "PWDEBUG=1 node src/download.js",
+    "codegen": "playwright codegen"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.55.0",
+    "xlsx": "^0.18.5"
+  }
+}

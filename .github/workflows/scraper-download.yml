@@ -1,0 +1,74 @@
+name: Download Planning
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 06:00 UTC
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: scraper
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scraper/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run download script
+        env:
+          LOGIN_URL: ${{ secrets.LOGIN_URL }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          LOGIN_ROLE: ${{ secrets.LOGIN_ROLE }}
+          USE_PLANNING_CURRENT_WEEK: "true"
+          PLANNING_URL_BASE: ${{ secrets.PLANNING_URL_BASE }}
+          PLANNING_V: ${{ secrets.PLANNING_V }}
+          PLANNING_P: ${{ secrets.PLANNING_P }}
+          EXPORT_PROFILE_LABEL: ${{ secrets.EXPORT_PROFILE_LABEL }}
+          HEADLESS: "true"
+          WAIT_AFTER_LOGIN_MS: "5000"
+          SCREENSHOT_AFTER_DOWNLOAD: "true"
+        run: node src/download.js
+
+      - name: Convert XLSX to CSV
+        run: npm run convert:csv
+
+      - name: Verify CSV output
+        run: |
+          shopt -s nullglob
+          csv_files=(downloads/*.csv)
+          if [ ${#csv_files[@]} -eq 0 ]; then
+            echo "No CSV files were produced in downloads/."
+            exit 1
+          fi
+          ls -l downloads/*.csv
+
+      - name: Upload CSV to API
+        env:
+          CSV_UPLOAD_URL: "https://sentrex-acc.trics.online/api/planning/csv"
+          CSV_UPLOAD_FILE_FIELD: "file"
+          CSV_UPLOAD_MODE: "multipart"
+          CSV_UPLOAD_SUCCESS_STATUS: "201"
+        run: npm run upload:csv
+
+      - name: Upload downloads
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloads-${{ github.run_id }}
+          path: scraper/downloads/
+          retention-days: 30

@@ -30,3 +30,8 @@ Homestead.json
 .azure-deploy-values
 .phpactor.json
 auth.json
+
+# Scraper (web-download-bot)
+scraper/node_modules/
+scraper/downloads/
+scraper/.env
