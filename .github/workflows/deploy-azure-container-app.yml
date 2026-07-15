@@ -122,6 +122,29 @@ jobs:
             LOGIN_SERVER="${{ steps.build.outputs.login_server }}"
 
             echo "Ensuring Azure Files storage is configured on Container Apps environment..."
+
+            EXISTING_STORAGE_ACCOUNT=$(az containerapp env storage show \
+              --name "$CONTAINER_APPS_ENVIRONMENT" \
+              --resource-group "$RESOURCE_GROUP" \
+              --storage-name "$STORAGE_VOLUME_NAME" \
+              --query "properties.azureFile.accountName" \
+              -o tsv 2>/dev/null || true)
+
+            EXISTING_STORAGE_SHARE=$(az containerapp env storage show \
+              --name "$CONTAINER_APPS_ENVIRONMENT" \
+              --resource-group "$RESOURCE_GROUP" \
+              --storage-name "$STORAGE_VOLUME_NAME" \
+              --query "properties.azureFile.shareName" \
+              -o tsv 2>/dev/null || true)
+
+            if [ -n "$EXISTING_STORAGE_ACCOUNT" ] && { [ "$EXISTING_STORAGE_ACCOUNT" != "$STORAGE_ACCOUNT_NAME" ] || [ "$EXISTING_STORAGE_SHARE" != "$STORAGE_SHARE_NAME" ]; }; then
+              echo "Existing env storage '$STORAGE_VOLUME_NAME' points to $EXISTING_STORAGE_ACCOUNT/$EXISTING_STORAGE_SHARE. Recreating for $STORAGE_ACCOUNT_NAME/$STORAGE_SHARE_NAME..."
+              az containerapp env storage remove \
+                --name "$CONTAINER_APPS_ENVIRONMENT" \
+                --resource-group "$RESOURCE_GROUP" \
+                --storage-name "$STORAGE_VOLUME_NAME"
+            fi
+
             az containerapp env storage set \
               --name "$CONTAINER_APPS_ENVIRONMENT" \
               --resource-group "$RESOURCE_GROUP" \
@@ -136,9 +159,7 @@ jobs:
               az containerapp update \
                 --name "$CONTAINER_APP_NAME" \
                 --resource-group "$RESOURCE_GROUP" \
-                --image "$IMAGE_REF" \
-                --set "template.volumes=[{\"name\":\"$STORAGE_VOLUME_NAME\",\"storageType\":\"AzureFile\",\"storageName\":\"$STORAGE_VOLUME_NAME\"}]" \
-                --set "template.containers[0].volumeMounts=[{\"volumeName\":\"$STORAGE_VOLUME_NAME\",\"mountPath\":\"$STORAGE_MOUNT_PATH\"}]"
+                --image "$IMAGE_REF"
             else
               echo "Container App not found. Creating it now."
 
