@@ -8,7 +8,6 @@ dotenv.config();
 
 const requiredVars = [
   "LOGIN_URL",
-  "USERNAME",
   "PASSWORD"
 ];
 
@@ -18,6 +17,14 @@ const missing = requiredVars.filter((name) => {
 });
 if (missing.length > 0) {
   console.error(`Missing required env vars: ${missing.join(", ")}`);
+  process.exit(1);
+}
+
+// SCRAPER_USERNAME takes precedence over USERNAME to avoid picking up the
+// Windows OS account username that is always present as process.env.USERNAME.
+const username = process.env.SCRAPER_USERNAME || process.env.USERNAME;
+if (!username || username.trim().length === 0) {
+  console.error("Missing required env var: SCRAPER_USERNAME (or USERNAME as fallback)");
   process.exit(1);
 }
 
@@ -106,9 +113,9 @@ try {
 
   console.log("Filling credentials...");
   if (process.env.USERNAME_SELECTOR) {
-    await page.fill(process.env.USERNAME_SELECTOR, process.env.USERNAME);
+    await page.fill(process.env.USERNAME_SELECTOR, username);
   } else {
-    await page.getByRole("textbox").first().fill(process.env.USERNAME);
+    await page.getByRole("textbox").first().fill(username);
   }
 
   if (process.env.PASSWORD_SELECTOR) {
