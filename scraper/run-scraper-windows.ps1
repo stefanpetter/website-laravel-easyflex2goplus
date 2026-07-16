@@ -33,7 +33,7 @@ function Write-Log {
         [string]$Message
     )
 
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
     $line = "[{0}] [{1}] {2}" -f $timestamp, $Level.ToUpperInvariant(), $Message
 
     if ($Level -eq "ERROR") {
@@ -57,7 +57,7 @@ function Resolve-CommandPath {
         }
     }
 
-    throw "Required command not found: $($Names -join ', ')"
+    throw "Required command not found. Tried: $($Names -join ', ')"
 }
 
 function Import-DotEnvFile {

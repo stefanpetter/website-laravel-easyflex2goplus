@@ -161,7 +161,7 @@ Set the same values used by the workflow/local scraper, especially:
 For upload, either set script parameters / machine environment variables, or add these to `.env` so the Windows wrapper can load them before `upload:csv` runs:
 
 ```dotenv
-CSV_UPLOAD_URL=https://easyflex2goplus.stefanpetter.nl/api/csv/upload
+CSV_UPLOAD_URL=https://your-server.example.com/api/csv/upload
 CSV_UPLOAD_FILE_FIELD=file
 CSV_UPLOAD_BEARER_TOKEN=YOUR_TOKEN_HERE
 CSV_UPLOAD_MODE=multipart
