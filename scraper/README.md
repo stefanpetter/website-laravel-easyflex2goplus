@@ -157,6 +157,7 @@ Set the same values used by the workflow/local scraper, especially:
 - `PLANNING_URL_BASE`
 - `PLANNING_V`
 - `PLANNING_P`
+- `WAIT_FOR_MANUAL_CONFIRM=false` for unattended scheduled runs
 
 For upload, either set script parameters / machine environment variables, or add these to `.env` so the Windows wrapper can load them before `upload:csv` runs:
 

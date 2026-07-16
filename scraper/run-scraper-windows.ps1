@@ -84,11 +84,14 @@ function Import-DotEnvFile {
         }
 
         $separatorIndex = $trimmed.IndexOf("=")
-        if ($separatorIndex -lt 1) {
+        if ($separatorIndex -lt 0) {
             continue
         }
 
         $name = $trimmed.Substring(0, $separatorIndex).Trim()
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            continue
+        }
         $value = $trimmed.Substring($separatorIndex + 1)
 
         if ($value.Length -ge 2) {
