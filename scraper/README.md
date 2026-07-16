@@ -196,7 +196,7 @@ Optional parameters:
 Example:
 
 ```powershell
-.\run-scraper-windows.ps1 -EnvFile "C:\EasyFlex\scraper\.env" -SkipDependencyInstall -SkipBrowserInstall
+.\run-scraper-windows.ps1 -EnvFile "C:\path\to\website-laravel-easyflex2goplus\scraper\.env" -SkipDependencyInstall -SkipBrowserInstall
 ```
 
 ### Task Scheduler setup
