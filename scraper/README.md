@@ -40,6 +40,7 @@ Edit `.env` with your real URLs, credentials, and selectors.
 For your case:
 
 - `LOGIN_URL=https://uniepool.easyflex2go.nl/login`
+- `SCRAPER_USERNAME=<your login username>` (use `SCRAPER_USERNAME` to avoid conflicts with the Windows built-in `USERNAME` environment variable)
 - `LOGIN_ROLE=Relatie`
 - `USE_PLANNING_CURRENT_WEEK=true`
 - `EXPORT_PROFILE_LABEL=def export planning chauffeur`
