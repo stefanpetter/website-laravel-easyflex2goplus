@@ -9,6 +9,29 @@ const downloadsDir = path.resolve(projectRoot, "downloads");
 
 const DEFAULT_UPLOAD_URL = "https://ef2goplus.uniepool.com/api/csv/upload?token=8GTTefsDTHvSdNtmqjy0DavVky8mZeUX";
 const DEFAULT_SUCCESS_STATUS = 201;
+const RETRY_ATTEMPTS = 5;
+const RETRY_DELAY_MS = 5000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientError = (error) =>
+  error instanceof TypeError && /EAI_AGAIN|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT/i.test(error.message + (error.cause?.message ?? ""));
+
+const withRetry = async (label, fn) => {
+  for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt < RETRY_ATTEMPTS && isTransientError(error)) {
+        const delay = RETRY_DELAY_MS * attempt;
+        console.warn(`${label}: transient error on attempt ${attempt}/${RETRY_ATTEMPTS}, retrying in ${delay / 1000}s... (${error.cause?.message ?? error.message})`);
+        await sleep(delay);
+      } else {
+        throw error;
+      }
+    }
+  }
+};
 
 const normalizeMode = (mode) => {
   const normalized = (mode || "multipart").trim().toLowerCase();
@@ -158,7 +181,9 @@ const main = async () => {
   }
 
   for (const csvPath of csvFiles) {
-    await uploadCsvFile({ csvPath, uploadUrl, fileFieldName, bearerToken, uploadMode, expectedStatus });
+    await withRetry(path.basename(csvPath), () =>
+      uploadCsvFile({ csvPath, uploadUrl, fileFieldName, bearerToken, uploadMode, expectedStatus })
+    );
   }
 };
 

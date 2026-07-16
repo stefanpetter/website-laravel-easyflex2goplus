@@ -10,7 +10,9 @@ param(
     [string]$CsvUploadUrl,
     [string]$CsvUploadBearerToken,
     [switch]$SkipDependencyInstall,
-    [switch]$SkipBrowserInstall
+    [switch]$SkipBrowserInstall,
+    [string]$LogsDir = (Join-Path $PSScriptRoot "logs"),
+    [int]$MaxLogFiles = 10
 )
 
 Set-StrictMode -Version Latest
@@ -38,10 +40,13 @@ function Write-Log {
 
     if ($Level -eq "ERROR") {
         [Console]::Error.WriteLine($line)
-        return
+    } else {
+        Write-Host $line
     }
 
-    Write-Host $line
+    if ($script:LogFile) {
+        Add-Content -LiteralPath $script:LogFile -Value $line -Encoding UTF8
+    }
 }
 
 function Resolve-CommandPath {
@@ -164,6 +169,19 @@ function Invoke-Step {
     Write-Log "INFO" "Completed step: $Name"
 }
 
+# Set up log file
+if (-not (Test-Path -LiteralPath $LogsDir)) {
+    New-Item -ItemType Directory -Path $LogsDir | Out-Null
+}
+$script:LogFile = Join-Path $LogsDir ("scraper-{0}.log" -f (Get-Date).ToString("yyyyMMdd_HHmmss"))
+Add-Content -LiteralPath $script:LogFile -Value ("=== Scraper run started {0} ===" -f (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")) -Encoding UTF8
+
+# Rotate: keep only the last $MaxLogFiles log files
+$existingLogs = Get-ChildItem -LiteralPath $LogsDir -Filter "scraper-*.log" -File | Sort-Object Name
+if ($existingLogs.Count -gt $MaxLogFiles) {
+    $existingLogs | Select-Object -First ($existingLogs.Count - $MaxLogFiles) | Remove-Item -Force
+}
+
 try {
     $resolvedScraperRoot = (Resolve-Path -LiteralPath $ScraperRoot).Path
     Import-DotEnvFile -Path $EnvFile
@@ -223,5 +241,12 @@ try {
     }
 } catch {
     Write-Log "ERROR" $_.Exception.Message
+    if ($script:LogFile) {
+        Add-Content -LiteralPath $script:LogFile -Value ("=== Scraper run FAILED {0} ===" -f (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")) -Encoding UTF8
+    }
     exit 1
+}
+
+if ($script:LogFile) {
+    Add-Content -LiteralPath $script:LogFile -Value ("=== Scraper run completed {0} ===" -f (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")) -Encoding UTF8
 }
