@@ -39,6 +39,8 @@ const main = async () => {
   for (const xlsxPath of xlsxFiles) {
     const { csvPath, firstSheetName } = await convertWorkbookToCsv(xlsxPath);
     console.log(`Converted ${path.basename(xlsxPath)} (sheet: ${firstSheetName}) -> ${path.basename(csvPath)}`);
+    await fs.unlink(xlsxPath);
+    console.log(`Deleted ${path.basename(xlsxPath)}`);
   }
 };
 

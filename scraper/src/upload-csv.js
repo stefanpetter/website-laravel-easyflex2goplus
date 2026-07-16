@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const downloadsDir = path.resolve(projectRoot, "downloads");
 
-const DEFAULT_UPLOAD_URL = "https://ef2goplus.uniepool.com/api/planning/csv/?token=8GTTefsDTHvSdNtmqjy0DavVky8mZeUX";
+const DEFAULT_UPLOAD_URL = "https://ef2goplus.uniepool.com/api/upload/csv/?token=8GTTefsDTHvSdNtmqjy0DavVky8mZeUX";
 const DEFAULT_SUCCESS_STATUS = 201;
 
 const normalizeMode = (mode) => {
@@ -96,6 +96,8 @@ const uploadCsvFile = async ({ csvPath, uploadUrl, fileFieldName, bearerToken, u
       throw new Error(`Upload failed for ${filename} using multipart: ${await describeError(response)}`);
     }
     console.log(`Uploaded ${filename} using multipart: HTTP ${response.status}`);
+    await fs.unlink(csvPath);
+    console.log(`Deleted ${filename}`);
     return;
   }
 
@@ -105,12 +107,16 @@ const uploadCsvFile = async ({ csvPath, uploadUrl, fileFieldName, bearerToken, u
       throw new Error(`Upload failed for ${filename} using raw: ${await describeError(response)}`);
     }
     console.log(`Uploaded ${filename} using raw: HTTP ${response.status}`);
+    await fs.unlink(csvPath);
+    console.log(`Deleted ${filename}`);
     return;
   }
 
   const multipartResponse = await uploadMultipart({ uploadUrl, fileFieldName, filename, csvBuffer, bearerToken });
   if (isExpectedSuccess(multipartResponse, expectedStatus)) {
     console.log(`Uploaded ${filename} using multipart: HTTP ${multipartResponse.status}`);
+    await fs.unlink(csvPath);
+    console.log(`Deleted ${filename}`);
     return;
   }
 
@@ -126,6 +132,8 @@ const uploadCsvFile = async ({ csvPath, uploadUrl, fileFieldName, bearerToken, u
   }
 
   console.log(`Uploaded ${filename} using raw fallback: HTTP ${rawResponse.status}`);
+  await fs.unlink(csvPath);
+  console.log(`Deleted ${filename}`);
 };
 
 const main = async () => {
