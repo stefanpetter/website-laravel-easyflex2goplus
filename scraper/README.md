@@ -161,13 +161,14 @@ Set the same values used by the workflow/local scraper, especially:
 For upload, either set script parameters / machine environment variables, or add these to `.env` so the Windows wrapper can load them before `upload:csv` runs:
 
 ```dotenv
-CSV_UPLOAD_URL=https://easyflex2goplus.stefanpetter.nl/api/csv/upload?token=YOUR_TOKEN_HERE
+CSV_UPLOAD_URL=https://easyflex2goplus.stefanpetter.nl/api/csv/upload
 CSV_UPLOAD_FILE_FIELD=file
+CSV_UPLOAD_BEARER_TOKEN=YOUR_TOKEN_HERE
 CSV_UPLOAD_MODE=multipart
 CSV_UPLOAD_SUCCESS_STATUS=201
 ```
 
-Set `CSV_UPLOAD_URL` explicitly to the same endpoint/token combination you use in GitHub Actions or your local environment.
+Set `CSV_UPLOAD_URL` explicitly to the same endpoint you use in GitHub Actions or your local environment. Prefer `CSV_UPLOAD_BEARER_TOKEN` (or `-CsvUploadBearerToken`) for the credential itself. If your server still expects a query-string token, provide the full URL yourself via `CSV_UPLOAD_URL`.
 
 If you leave the other values unset, the wrapper applies the current workflow defaults for:
 

@@ -110,7 +110,7 @@ function Set-ProcessEnvIfProvided {
         [string]$Value
     )
 
-    if ($null -eq $Value) {
+    if ([string]::IsNullOrEmpty($Value)) {
         return
     }
 
