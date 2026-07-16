@@ -162,9 +162,19 @@ function Invoke-Step {
     )
 
     Write-Log "INFO" "Starting step: $Name"
-    & $Executable @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "Step failed: $Name (exit code $LASTEXITCODE)"
+    & $Executable @Arguments 2>&1 | ForEach-Object {
+        $line = $_.ToString()
+        if (-not [string]::IsNullOrWhiteSpace($line)) {
+            if ($script:LogFile) {
+                Add-Content -LiteralPath $script:LogFile -Value $line -Encoding UTF8
+            }
+            Write-Host $line
+        }
+    }
+
+    $stepExitCode = $LASTEXITCODE
+    if ($stepExitCode -ne 0) {
+        throw "Step failed: $Name (exit code $stepExitCode). Check the log output above for details."
     }
     Write-Log "INFO" "Completed step: $Name"
 }
