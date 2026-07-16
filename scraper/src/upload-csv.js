@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const downloadsDir = path.resolve(projectRoot, "downloads");
 
-const DEFAULT_UPLOAD_URL = "https://ef2goplus.uniepool.com/api/upload/csv/?token=8GTTefsDTHvSdNtmqjy0DavVky8mZeUX";
+const DEFAULT_UPLOAD_URL = "https://ef2goplus.uniepool.com/api/csv/upload/?token=8GTTefsDTHvSdNtmqjy0DavVky8mZeUX";
 const DEFAULT_SUCCESS_STATUS = 201;
 
 const normalizeMode = (mode) => {
