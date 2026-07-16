@@ -120,6 +120,102 @@ Optional environment variables:
 
 In GitHub Actions, upload runs automatically after the conversion step. If conversion fails, upload does not run.
 
+## 8) Run the full pipeline on Windows
+
+To mirror the GitHub Actions pipeline on Windows, use:
+
+```powershell
+.\run-scraper-windows.ps1
+```
+
+The PowerShell script runs the same end-to-end sequence as `.github/workflows/scraper-download.yml`:
+
+1. `npm ci`
+2. `npx playwright install chromium`
+3. `node src/download.js`
+4. `npm run convert:csv`
+5. verify that `downloads\*.csv` exists
+6. `npm run upload:csv`
+
+The script is non-interactive by default, writes progress to stdout/stderr, and exits with code `1` if any step fails.
+
+### Windows configuration
+
+Create `scraper/.env` as usual:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Set the same values used by the workflow/local scraper, especially:
+
+- `LOGIN_URL`
+- `SCRAPER_USERNAME` (recommended on Windows instead of `USERNAME`)
+- `PASSWORD`
+- `LOGIN_ROLE`
+- `USE_PLANNING_CURRENT_WEEK=true`
+- `PLANNING_URL_BASE`
+- `PLANNING_V`
+- `PLANNING_P`
+- `WAIT_FOR_MANUAL_CONFIRM=false` for unattended scheduled runs
+
+For upload, either set script parameters / machine environment variables, or add these to `.env` so the Windows wrapper can load them before `upload:csv` runs:
+
+```dotenv
+CSV_UPLOAD_URL=https://your-server.example.com/api/csv/upload
+CSV_UPLOAD_FILE_FIELD=file
+CSV_UPLOAD_BEARER_TOKEN=YOUR_TOKEN_HERE
+CSV_UPLOAD_MODE=multipart
+CSV_UPLOAD_SUCCESS_STATUS=201
+```
+
+Set `CSV_UPLOAD_URL` explicitly to the same endpoint you use in GitHub Actions or your local environment. Prefer `CSV_UPLOAD_BEARER_TOKEN` (or `-CsvUploadBearerToken`) for the credential itself. If your server still expects a query-string token, provide the full URL yourself via `CSV_UPLOAD_URL`.
+
+If you leave the other values unset, the wrapper applies the current workflow defaults for:
+
+- `USE_PLANNING_CURRENT_WEEK=true`
+- `HEADLESS=true`
+- `WAIT_AFTER_LOGIN_MS=5000`
+- `EXPORT_PROFILE_APPLY_DELAY_MS=5000`
+- `SCREENSHOT_AFTER_DOWNLOAD=true`
+- `CSV_UPLOAD_FILE_FIELD=file`
+- `CSV_UPLOAD_MODE=multipart`
+- `CSV_UPLOAD_SUCCESS_STATUS=201`
+
+Optional parameters:
+
+- `-EnvFile <path>` to load a different `.env` file
+- `-ScraperUsername <value>`
+- `-Password <value>`
+- `-LoginUrl <value>`
+- `-CsvUploadUrl <value>`
+- `-CsvUploadBearerToken <value>`
+- `-SkipDependencyInstall` to skip `npm ci`
+- `-SkipBrowserInstall` to skip `npx playwright install chromium`
+
+Example:
+
+```powershell
+.\run-scraper-windows.ps1 -EnvFile "C:\path\to\website-laravel-easyflex2goplus\scraper\.env" -SkipDependencyInstall -SkipBrowserInstall
+```
+
+### Task Scheduler setup
+
+You can schedule either the PowerShell script directly or the helper batch file.
+
+Direct PowerShell action:
+
+- **Program/script:** `powershell.exe`
+- **Add arguments:** `-NoProfile -ExecutionPolicy Bypass -File "C:\path\to\website-laravel-easyflex2goplus\scraper\run-scraper-windows.ps1"`
+- **Start in:** `C:\path\to\website-laravel-easyflex2goplus\scraper`
+
+Batch file alternative:
+
+- **Program/script:** `C:\path\to\website-laravel-easyflex2goplus\scraper\run-scraper-windows.cmd`
+- **Start in:** `C:\path\to\website-laravel-easyflex2goplus\scraper`
+
+For unattended runs, use a `.env` file with the required values and keep `WAIT_FOR_MANUAL_CONFIRM=false`.
+
 ## MFA / CAPTCHA notes
 
 - If site has MFA, set `WAIT_FOR_MANUAL_CONFIRM=true` and `HEADLESS=false`.
