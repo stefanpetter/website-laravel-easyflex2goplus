@@ -161,20 +161,21 @@ Set the same values used by the workflow/local scraper, especially:
 For upload, either set script parameters / machine environment variables, or add these to `.env` so the Windows wrapper can load them before `upload:csv` runs:
 
 ```dotenv
-CSV_UPLOAD_URL=https://easyflex2goplus.stefanpetter.nl/api/csv/upload?token=token123
+CSV_UPLOAD_URL=https://easyflex2goplus.stefanpetter.nl/api/csv/upload?token=YOUR_TOKEN_HERE
 CSV_UPLOAD_FILE_FIELD=file
 CSV_UPLOAD_MODE=multipart
 CSV_UPLOAD_SUCCESS_STATUS=201
 ```
 
-If you leave these unset, the wrapper applies the current workflow defaults for:
+Set `CSV_UPLOAD_URL` explicitly to the same endpoint/token combination you use in GitHub Actions or your local environment.
+
+If you leave the other values unset, the wrapper applies the current workflow defaults for:
 
 - `USE_PLANNING_CURRENT_WEEK=true`
 - `HEADLESS=true`
 - `WAIT_AFTER_LOGIN_MS=5000`
 - `EXPORT_PROFILE_APPLY_DELAY_MS=5000`
 - `SCREENSHOT_AFTER_DOWNLOAD=true`
-- `CSV_UPLOAD_URL=https://easyflex2goplus.stefanpetter.nl/api/csv/upload?token=token123`
 - `CSV_UPLOAD_FILE_FIELD=file`
 - `CSV_UPLOAD_MODE=multipart`
 - `CSV_UPLOAD_SUCCESS_STATUS=201`

@@ -22,7 +22,6 @@ $workflowDefaults = @{
     WAIT_AFTER_LOGIN_MS          = "5000"
     EXPORT_PROFILE_APPLY_DELAY_MS = "5000"
     SCREENSHOT_AFTER_DOWNLOAD    = "true"
-    CSV_UPLOAD_URL               = "https://easyflex2goplus.stefanpetter.nl/api/csv/upload?token=token123"
     CSV_UPLOAD_FILE_FIELD        = "file"
     CSV_UPLOAD_MODE              = "multipart"
     CSV_UPLOAD_SUCCESS_STATUS    = "201"
