@@ -33,7 +33,7 @@ function Write-Log {
         [string]$Message
     )
 
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
+    $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff")
     $line = "[{0}] [{1}] {2}" -f $timestamp, $Level.ToUpperInvariant(), $Message
 
     if ($Level -eq "ERROR") {
@@ -212,7 +212,7 @@ try {
         }
 
         if ($csvFiles.Count -eq 0) {
-            throw "No CSV files were produced in $downloadsDir."
+            throw "No CSV files were produced in downloads directory: $downloadsDir"
         }
 
         Write-Log "INFO" ("CSV files ready for upload: {0}" -f ($csvFiles.Name -join ", "))
