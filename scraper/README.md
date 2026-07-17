@@ -85,7 +85,6 @@ npm run convert:csv
 
 The converter processes all `.xlsx` files in `downloads/` and writes a `.csv` file with the same base name using the first worksheet.
 
-In GitHub Actions, this conversion now runs automatically right after the download step.
 
 ## 7) Upload CSV (POST)
 
@@ -118,17 +117,16 @@ Optional environment variables:
 
 `CSV_UPLOAD_MODE=auto` tries multipart first and, if that fails, retries as raw `text/csv` body.
 
-In GitHub Actions, upload runs automatically after the conversion step. If conversion fails, upload does not run.
 
 ## 8) Run the full pipeline on Windows
 
-To mirror the GitHub Actions pipeline on Windows, use:
+To run the full scraper pipeline on Windows, use:
 
 ```powershell
 .\run-scraper-windows.ps1
 ```
 
-The PowerShell script runs the same end-to-end sequence as `.github/workflows/scraper-download.yml`:
+The PowerShell script runs this end-to-end sequence:
 
 1. `npm ci`
 2. `npx playwright install chromium`
@@ -147,7 +145,7 @@ Create `scraper/.env` as usual:
 Copy-Item .env.example .env
 ```
 
-Set the same values used by the workflow/local scraper, especially:
+Set the same values used by your local scraper setup, especially:
 
 - `LOGIN_URL`
 - `SCRAPER_USERNAME` (recommended on Windows instead of `USERNAME`)
@@ -169,9 +167,9 @@ CSV_UPLOAD_MODE=multipart
 CSV_UPLOAD_SUCCESS_STATUS=201
 ```
 
-Set `CSV_UPLOAD_URL` explicitly to the same endpoint you use in GitHub Actions or your local environment. Prefer `CSV_UPLOAD_BEARER_TOKEN` (or `-CsvUploadBearerToken`) for the credential itself. If your server still expects a query-string token, provide the full URL yourself via `CSV_UPLOAD_URL`.
+Set `CSV_UPLOAD_URL` explicitly to the same endpoint you use in your local or hosted environment. Prefer `CSV_UPLOAD_BEARER_TOKEN` (or `-CsvUploadBearerToken`) for the credential itself. If your server still expects a query-string token, provide the full URL yourself via `CSV_UPLOAD_URL`.
 
-If you leave the other values unset, the wrapper applies the current workflow defaults for:
+If you leave the other values unset, the wrapper applies the current script defaults for:
 
 - `USE_PLANNING_CURRENT_WEEK=true`
 - `HEADLESS=true`

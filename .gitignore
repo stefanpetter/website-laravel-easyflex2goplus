@@ -27,7 +27,6 @@ Homestead.json
 .env.backup
 .env.production
 .env.prod
-.azure-deploy-values
 .phpactor.json
 auth.json
 
