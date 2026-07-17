@@ -57,13 +57,6 @@
             color: var(--muted);
         }
 
-        .nav {
-            margin-top: 14px;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
         .btn {
             display: inline-block;
             text-decoration: none;
@@ -285,33 +278,10 @@
             border-color: #8ed5a8;
         }
 
-        .badges {
-            margin-top: 3px;
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-        }
-
         .driver-line {
             margin-top: 4px;
             font-size: .76rem;
             color: #2f4c2b;
-        }
-
-        .badge {
-            display: inline-block;
-            border-radius: 100px;
-            padding: 2px 7px;
-            font-size: .72rem;
-            border: 1px solid var(--line);
-            background: #f3f8f4;
-            color: #304130;
-        }
-
-        .badge.driver {
-            background: #d4f3df;
-            border-color: #7fc997;
-            color: #0f5c30;
         }
 
         .empty {
@@ -349,17 +319,10 @@
         <div class="header">
             <h1>Flexworker Week Planner</h1>
             <div class="meta">Week {{ $week }} ({{ $year }})</div>
-            <div class="nav">
-                <a class="btn alt" href="{{ route('calendar.week', ['token' => $token, 'week' => $previousWeek->format('W'), 'year' => $previousWeek->format('o')]) }}">Previous</a>
-                <a class="btn" href="{{ route('calendar.week', ['token' => $token, 'week' => now()->format('W'), 'year' => now()->format('o')]) }}">Current week</a>
-                <a class="btn alt" href="{{ route('calendar.week', ['token' => $token, 'week' => $nextWeek->format('W'), 'year' => $nextWeek->format('o')]) }}">Next</a>
-            </div>
 
             <div class="toolbar">
                 <form class="search" method="GET" action="{{ route('calendar.week') }}">
                     <input type="hidden" name="token" value="{{ $token }}">
-                    <input type="hidden" name="week" value="{{ $week }}">
-                    <input type="hidden" name="year" value="{{ $year }}">
                     <select name="q" id="worker-search-select">
                         <option value="">Search flexworker name or registration number</option>
                         @foreach ($workerOptions as $option)
@@ -368,7 +331,7 @@
                     </select>
                     <button type="submit" class="btn">Search</button>
                     @if ($search !== '')
-                        <a class="btn alt" href="{{ route('calendar.week', ['token' => $token, 'week' => $week, 'year' => $year]) }}">Clear</a>
+                        <a class="btn alt" href="{{ route('calendar.week', ['token' => $token]) }}">Clear</a>
                     @endif
                 </form>
 
@@ -436,17 +399,6 @@
                                                             @if ($assignment['registration'])
                                                                 <div>#{{ $assignment['registration'] }}</div>
                                                             @endif
-                                                            <div class="badges">
-                                                                @if ($assignment['is_driver'])
-                                                                    <span class="badge driver">Driver</span>
-                                                                @endif
-                                                                @if ($assignment['worker_status'])
-                                                                    <span class="badge">{{ $assignment['worker_status'] }}</span>
-                                                                @endif
-                                                                @if ($assignment['planning_status'])
-                                                                    <span class="badge">{{ $assignment['planning_status'] }}</span>
-                                                                @endif
-                                                            </div>
                                                             <div class="driver-line">
                                                                 @if ($assignment['is_driver'])
                                                                     This flexworker is the chauffeur for this shift.

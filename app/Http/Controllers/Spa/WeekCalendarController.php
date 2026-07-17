@@ -16,14 +16,12 @@ class WeekCalendarController extends Controller
 
     public function index()
     {
-        $week = (int) request('week', Carbon::now()->format('W'));
-        $year = (int) request('year', Carbon::now()->format('o'));
+        $currentDate = Carbon::now();
+        $week = (int) $currentDate->format('W');
+        $year = (int) $currentDate->format('o');
         $search = trim((string) request('q', ''));
 
-        $date = Carbon::now();
-        $date->setISODate($year, $week);
-
-        $currentWeekStart = $date->copy()->startOfWeek();
+        $currentWeekStart = $currentDate->copy()->setISODate($year, $week)->startOfWeek();
 
         $import = $this->planningCsvImportService->ensureLatestCsvImportedForWeek($week, $year);
 
@@ -144,9 +142,6 @@ class WeekCalendarController extends Controller
             'week' => $week,
             'year' => $year,
             'companies' => array_values($companies),
-            'previousWeek' => $date->copy()->subWeek(),
-            'nextWeek' => $date->copy()->addWeek(),
-            'currentWeekDate' => $date,
             'token' => request('token'),
             'search' => $search,
             'workerOptions' => array_values($workerOptions),
