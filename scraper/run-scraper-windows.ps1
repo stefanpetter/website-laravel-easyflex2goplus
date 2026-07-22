@@ -187,7 +187,7 @@ $script:LogFile = Join-Path $LogsDir ("scraper-{0}.log" -f (Get-Date).ToString("
 Add-Content -LiteralPath $script:LogFile -Value ("=== Scraper run started {0} ===" -f (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")) -Encoding UTF8
 
 # Rotate: keep only the last $MaxLogFiles log files
-$existingLogs = Get-ChildItem -LiteralPath $LogsDir -Filter "scraper-*.log" -File | Sort-Object Name
+$existingLogs = @(Get-ChildItem -LiteralPath $LogsDir -Filter "scraper-*.log" -File | Sort-Object Name)
 if ($existingLogs.Count -gt $MaxLogFiles) {
     $existingLogs | Select-Object -First ($existingLogs.Count - $MaxLogFiles) | Remove-Item -Force
 }
@@ -236,7 +236,7 @@ try {
         $downloadsDir = Join-Path $resolvedScraperRoot "downloads"
         $csvFiles = @()
         if (Test-Path -LiteralPath $downloadsDir) {
-            $csvFiles = Get-ChildItem -LiteralPath $downloadsDir -Filter "*.csv" -File
+            $csvFiles = @(Get-ChildItem -LiteralPath $downloadsDir -Filter "*.csv" -File)
         }
 
         if ($csvFiles.Count -eq 0) {
