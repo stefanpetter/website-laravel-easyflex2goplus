@@ -30,7 +30,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('planning_import_id')->constrained('planning_imports')->cascadeOnDelete();
             $table->string('company_name');
-            $table->string('subsidiary_name')->nullable();
             $table->string('role_name')->nullable();
             $table->string('cost_center_name')->nullable();
             $table->string('work_address')->nullable();

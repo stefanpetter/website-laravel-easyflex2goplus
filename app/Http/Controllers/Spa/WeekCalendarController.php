@@ -119,8 +119,8 @@ class WeekCalendarController extends Controller
 
                 $companies[$companyName]['days'][$daysByDate[$dayDate]]['shifts'][] = [
                     'company_name' => $companyName,
-                    'subsidiary_name' => $shift->subsidiary_name,
                     'role_name' => $shift->role_name,
+                    'function_name' => $shift->function_name,
                     'cost_center_name' => $shift->cost_center_name,
                     'work_address' => $shift->work_address,
                     'time_label' => sprintf('%s - %s', $shift->start_time, $shift->end_time),

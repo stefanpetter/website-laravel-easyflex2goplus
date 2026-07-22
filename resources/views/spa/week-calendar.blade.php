@@ -374,9 +374,6 @@
                                             <article class="shift">
                                                 <div class="shift-time">{{ $shift['time_label'] }}</div>
                                                 <div class="shift-meta">
-                                                    @if ($shift['subsidiary_name'])
-                                                        {{ $shift['subsidiary_name'] }}<br>
-                                                    @endif
                                                     @if ($shift['role_name'])
                                                         {{ $shift['role_name'] }}
                                                     @endif
@@ -385,6 +382,12 @@
                                                     @endif
                                                     @if ($shift['work_address'])
                                                         <br>{{ $shift['work_address'] }}
+                                                    @endif
+                                                    @if (
+                                                        $shift['function_name']
+                                                        && mb_strtolower(trim((string) $shift['function_name'])) !== mb_strtolower(trim((string) $shift['role_name']))
+                                                    )
+                                                        <br>{{ $shift['function_name'] }}
                                                     @endif
                                                 </div>
 

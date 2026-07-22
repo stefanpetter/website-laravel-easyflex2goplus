@@ -18,8 +18,8 @@ class PlanningCsvImportService
     private const DATE_FORMAT = 'd-m-Y';
 
     private const COLUMN_COMPANY = 'Relatie - Naam';
-    private const COLUMN_SUBSIDIARY = 'Relatie - Werkmaatschappij - Naam';
     private const COLUMN_ROLE = 'Hoofdfunctie - Naam';
+    private const COLUMN_FUNCTION_NAME = 'Functienaam';
     private const COLUMN_COST_CENTER = 'Kostenplaats - Naam';
     private const COLUMN_WORK_ADDRESS = 'Meld- / werkadres - Omschrijving';
     private const COLUMN_DATE = 'Datum';
@@ -193,8 +193,8 @@ class PlanningCsvImportService
                 $shiftData = [
                     'planning_import_id' => $import->id,
                     'company_name' => $companyName,
-                    'subsidiary_name' => $this->clean($row[self::COLUMN_SUBSIDIARY] ?? null),
                     'role_name' => $this->clean($row[self::COLUMN_ROLE] ?? null),
+                    'function_name' => $this->clean($row[self::COLUMN_FUNCTION_NAME] ?? null),
                     'cost_center_name' => $this->clean($row[self::COLUMN_COST_CENTER] ?? null),
                     'work_address' => $this->clean($row[self::COLUMN_WORK_ADDRESS] ?? null),
                     'shift_date' => $shiftDate->toDateString(),
@@ -363,8 +363,8 @@ class PlanningCsvImportService
         return sha1(implode('|', [
             $shiftData['planning_import_id'],
             mb_strtolower((string) $shiftData['company_name']),
-            mb_strtolower((string) $shiftData['subsidiary_name']),
             mb_strtolower((string) $shiftData['role_name']),
+            mb_strtolower((string) $shiftData['function_name']),
             mb_strtolower((string) $shiftData['cost_center_name']),
             mb_strtolower((string) $shiftData['work_address']),
             $shiftData['shift_date'],

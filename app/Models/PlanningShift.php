@@ -14,8 +14,8 @@ class PlanningShift extends Model
     protected $fillable = [
         'planning_import_id',
         'company_name',
-        'subsidiary_name',
         'role_name',
+        'function_name',
         'cost_center_name',
         'work_address',
         'shift_date',
