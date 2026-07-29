@@ -404,11 +404,11 @@
                                                             @endif
                                                             <div class="driver-line">
                                                                 @if ($assignment['is_driver'])
-                                                                    This flexworker is the chauffeur for this shift.
-                                                                @elseif ($shift['driver_name'])
-                                                                    Driver for this flexworker: <strong>{{ $shift['driver_name'] }}</strong>
-                                                                @else
-                                                                    No chauffeur assigned yet.
+                                                                    @if (count($shift['driver_names']) > 1)
+                                                                        Is one of the chauffeurs for this shift.
+                                                                    @else
+                                                                        Is the chauffeur for this shift.
+                                                                    @endif
                                                                 @endif
                                                             </div>
                                                         </div>

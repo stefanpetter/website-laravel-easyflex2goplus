@@ -101,7 +101,11 @@ class WeekCalendarController extends Controller
                     continue;
                 }
 
-                $driver = collect($assignments)->first(fn (array $assignment): bool => $assignment['is_driver']);
+                $driverNames = collect($assignments)
+                    ->filter(fn (array $assignment): bool => $assignment['is_driver'])
+                    ->pluck('worker_name')
+                    ->values()
+                    ->all();
 
                 $companyName = $shift->company_name ?: 'Unknown company';
                 if (! isset($companies[$companyName])) {
@@ -127,7 +131,7 @@ class WeekCalendarController extends Controller
                     'shift_type_1' => $shift->shift_type_1,
                     'shift_type_2' => $shift->shift_type_2,
                     'assignments' => $assignments,
-                    'driver_name' => $driver['worker_name'] ?? null,
+                    'driver_names' => $driverNames,
                 ];
 
                 $companies[$companyName]['shift_count']++;
