@@ -128,8 +128,9 @@ class PlanningCsvImportService
     private function importRowsForWeek(array $rows, string $sourceFile, int $isoWeek, int $isoYear): PlanningImport
     {
         return DB::transaction(function () use ($rows, $sourceFile, $isoWeek, $isoYear) {
+            // Key on week/year only so re-importing the same week (from any file) always
+            // updates the single record for that week and never touches other weeks.
             $import = PlanningImport::query()->firstOrNew([
-                'source_file' => $sourceFile,
                 'iso_week' => $isoWeek,
                 'iso_year' => $isoYear,
             ]);
@@ -139,6 +140,7 @@ class PlanningCsvImportService
             }
 
             $import->fill([
+                'source_file' => $sourceFile,
                 'row_count' => 0,
                 'shift_count' => 0,
                 'assignment_count' => 0,
@@ -251,13 +253,6 @@ class PlanningCsvImportService
                 'assignment_count' => $assignmentCount,
             ]);
             $import->save();
-
-            // Keep only the latest successful import for this week/year.
-            PlanningImport::query()
-                ->where('iso_week', $isoWeek)
-                ->where('iso_year', $isoYear)
-                ->where('id', '!=', $import->id)
-                ->delete();
 
             return $import;
         });

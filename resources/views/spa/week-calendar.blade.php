@@ -304,6 +304,48 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        .week-nav {
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .week-nav .week-label {
+            font-weight: 700;
+            font-size: 1rem;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .week-nav .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .week-content-wrap {
+            position: relative;
+        }
+
+        .week-loading-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.6);
+            border-radius: 16px;
+            z-index: 10;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: var(--muted);
+        }
+
+        .week-loading-overlay.active {
+            display: flex;
+        }
+
         @media (max-width: 900px) {
             h1 { font-size: 1.2rem; }
             .search .select2-container { min-width: 220px; }
@@ -318,11 +360,18 @@
     <div class="container">
         <div class="header">
             <h1>Flexworker Week Planner</h1>
-            <div class="meta">Week {{ $week }} ({{ $year }})</div>
+
+            <div class="week-nav">
+                <button id="btn-prev-week" class="btn alt">&#8592; Previous week</button>
+                <span class="week-label" id="week-label">Week {{ $week }} ({{ $year }})</span>
+                <button id="btn-next-week" class="btn alt" {{ $isCurrentWeek ? 'disabled' : '' }}>Next week &#8594;</button>
+            </div>
 
             <div class="toolbar">
                 <form class="search" method="GET" action="{{ route('calendar.week') }}">
                     <input type="hidden" name="token" value="{{ $token }}">
+                    <input type="hidden" name="week" value="{{ $week }}">
+                    <input type="hidden" name="year" value="{{ $year }}">
                     <select name="q" id="worker-search-select">
                         <option value="">Search flexworker name or registration number</option>
                         @foreach ($workerOptions as $option)
@@ -331,109 +380,26 @@
                     </select>
                     <button type="submit" class="btn">Search</button>
                     @if ($search !== '')
-                        <a class="btn alt" href="{{ route('calendar.week', ['token' => $token]) }}">Clear</a>
+                        <a class="btn alt" href="{{ route('calendar.week', ['token' => $token, 'week' => $week, 'year' => $year]) }}">Clear</a>
                     @endif
                 </form>
 
-                <div class="search-meta">
+                <div class="search-meta" id="search-meta">
                     @if ($import)
                         Last updated {{ $import->imported_at?->format('d-m-Y H:i') }} | {{ $resultShiftCount }} visible shifts in {{ $resultCompanyCount }} companies
                     @else
-                        Could not import
+                        No data available for this week
                     @endif
                 </div>
             </div>
         </div>
 
-        @if (count($companies) === 0)
-            <div class="note">
-                @if ($search !== '')
-                    No shifts found for this search in week {{ $week }}.
-                @else
-                    No shifts available in week {{ $week }}.
-                @endif
+        <div class="week-content-wrap">
+            <div class="week-loading-overlay" id="week-loading">Loading&hellip;</div>
+            <div id="week-body">
+                @include('spa.partials.week-body')
             </div>
-        @else
-            <div class="companies">
-                @foreach ($companies as $company)
-                    <section class="company-card">
-                        <header class="company-head">
-                            <div class="company-title">{{ $company['company_name'] }}</div>
-                            <div class="company-count">{{ $company['shift_count'] }} shifts</div>
-                        </header>
-
-                        <div class="grid">
-                            @foreach ($company['days'] as $day)
-                                <section class="day">
-                                    <header class="day-head">
-                                        <div class="day-title">{{ $day['title'] }}</div>
-                                        <div class="day-sub">{{ $day['subtitle'] }}</div>
-                                    </header>
-                                    <div class="day-body">
-                                        @forelse ($day['shifts'] as $shift)
-                                            <article class="shift">
-                                                <div class="shift-time">{{ $shift['time_label'] }}</div>
-                                                <div class="shift-meta">
-                                                    @if ($shift['role_name'])
-                                                        {{ $shift['role_name'] }}
-                                                    @endif
-                                                    @if ($shift['cost_center_name'])
-                                                        | {{ $shift['cost_center_name'] }}
-                                                    @endif
-                                                    @if ($shift['work_address'])
-                                                        <br>{{ $shift['work_address'] }}
-                                                    @endif
-                                                    @if (
-                                                        $shift['function_name']
-                                                        && mb_strtolower(trim((string) $shift['function_name'])) !== mb_strtolower(trim((string) $shift['role_name']))
-                                                    )
-                                                        <br>{{ $shift['function_name'] }}
-                                                    @endif
-                                                </div>
-
-                                                <div class="workers">
-                                                    @forelse ($shift['assignments'] as $assignment)
-                                                        <div @class([
-                                                            'worker',
-                                                            'match' => $assignment['matches_search'],
-                                                            'driver' => $assignment['is_driver'],
-                                                        ])>
-                                                            <strong>{{ $assignment['worker_name'] }}</strong>
-                                                            @if ($assignment['registration'])
-                                                                <div>#{{ $assignment['registration'] }}</div>
-                                                            @endif
-                                                            <div class="driver-line">
-                                                                @if ($assignment['is_driver'])
-                                                                    @if (count($shift['driver_names']) > 1)
-                                                                        Is one of the chauffeurs for this shift.
-                                                                    @else
-                                                                        Is the chauffeur for this shift.
-                                                                    @endif
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                    @empty
-                                                        <div class="empty">No flexworkers assigned yet.</div>
-                                                    @endforelse
-                                                </div>
-                                            </article>
-                                        @empty
-                                            <div class="empty">
-                                                @if ($search !== '')
-                                                    No shifts found for this search on {{ $day['title'] }}.
-                                                @else
-                                                    No shifts scheduled.
-                                                @endif
-                                            </div>
-                                        @endforelse
-                                    </div>
-                                </section>
-                            @endforeach
-                        </div>
-                    </section>
-                @endforeach
-            </div>
-        @endif
+        </div>
 
         <div class="note">Access stays protected by the URL token. Drivers are marked inside each shift assignment list.</div>
     </div>
@@ -452,6 +418,139 @@
                 allowClear: true,
                 width: 'resolve'
             });
+        })();
+    </script>
+    <script>
+        (function () {
+            var token = {{ Js::from($token) }};
+            var search = {{ Js::from($search) }};
+            var displayWeek = {{ $week }};
+            var displayYear = {{ $year }};
+            var isCurrentWeek = {{ $isCurrentWeek ? 'true' : 'false' }};
+
+            var btnPrev = document.getElementById('btn-prev-week');
+            var btnNext = document.getElementById('btn-next-week');
+            var weekLabel = document.getElementById('week-label');
+            var weekBody = document.getElementById('week-body');
+            var weekLoading = document.getElementById('week-loading');
+            var searchMeta = document.getElementById('search-meta');
+
+            function isoWeekBounds(year, week) {
+                // Returns { prevWeek, prevYear, nextWeek, nextYear }
+                var jan4 = new Date(year, 0, 4);
+                var dayOfWeek = jan4.getDay() || 7;
+                var weekStart = new Date(jan4);
+                weekStart.setDate(jan4.getDate() - (dayOfWeek - 1) + (week - 1) * 7);
+
+                var prevDate = new Date(weekStart);
+                prevDate.setDate(weekStart.getDate() - 7);
+                var nextDate = new Date(weekStart);
+                nextDate.setDate(weekStart.getDate() + 7);
+
+                return {
+                    prevWeek: isoWeekNum(prevDate),
+                    prevYear: isoYear(prevDate),
+                    nextWeek: isoWeekNum(nextDate),
+                    nextYear: isoYear(nextDate),
+                };
+            }
+
+            function isoWeekNum(d) {
+                var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+                date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+                var yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+                return Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+            }
+
+            function isoYear(d) {
+                var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+                date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+                return date.getUTCFullYear();
+            }
+
+            function updateNavButtons() {
+                btnNext.disabled = isCurrentWeek;
+            }
+
+            function buildPageUrl(week, year) {
+                var params = new URLSearchParams(window.location.search);
+                params.set('week', week);
+                params.set('year', year);
+                return window.location.pathname + '?' + params.toString();
+            }
+
+            function loadWeek(week, year, pushHistory) {
+                var params = new URLSearchParams({
+                    week: week,
+                    year: year,
+                    q: search,
+                });
+                if (token) params.set('token', token);
+
+                weekLoading.classList.add('active');
+                btnPrev.disabled = true;
+                btnNext.disabled = true;
+
+                fetch('/week-data?' + params.toString(), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    displayWeek = data.week;
+                    displayYear = data.year;
+                    isCurrentWeek = data.isCurrentWeek;
+
+                    weekLabel.textContent = 'Week ' + data.week + ' (' + data.year + ')';
+                    weekBody.innerHTML = data.html;
+
+                    // Keep search form in sync with the displayed week.
+                    var inputWeek = document.querySelector('input[name="week"]');
+                    var inputYear = document.querySelector('input[name="year"]');
+                    if (inputWeek) inputWeek.value = data.week;
+                    if (inputYear) inputYear.value = data.year;
+
+                    if (pushHistory !== false) {
+                        history.pushState({ week: data.week, year: data.year }, '', buildPageUrl(data.week, data.year));
+                    }
+
+                    if (data.import) {
+                        searchMeta.textContent = 'Last updated ' + data.import.imported_at +
+                            ' | ' + data.import.shift_count + ' visible shifts in ' +
+                            data.import.company_count + ' companies';
+                    } else {
+                        searchMeta.textContent = 'No data available for this week';
+                    }
+                })
+                .catch(function () {
+                    weekBody.innerHTML = '<div class="note">Failed to load week data. Please try again.</div>';
+                })
+                .finally(function () {
+                    weekLoading.classList.remove('active');
+                    btnPrev.disabled = false;
+                    updateNavButtons();
+                });
+            }
+
+            btnPrev.addEventListener('click', function () {
+                var bounds = isoWeekBounds(displayYear, displayWeek);
+                loadWeek(bounds.prevWeek, bounds.prevYear);
+            });
+
+            btnNext.addEventListener('click', function () {
+                var bounds = isoWeekBounds(displayYear, displayWeek);
+                loadWeek(bounds.nextWeek, bounds.nextYear);
+            });
+
+            window.addEventListener('popstate', function (e) {
+                if (e.state && e.state.week && e.state.year) {
+                    loadWeek(e.state.week, e.state.year, false);
+                }
+            });
+
+            // Seed the initial history entry so popstate fires correctly when navigating back.
+            history.replaceState({ week: displayWeek, year: displayYear }, '', window.location.href);
+
+            updateNavButtons();
         })();
     </script>
 </body>

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Spa;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlanningImport;
 use App\Models\PlanningShift;
 use App\Services\PlanningCsvImportService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 
 class WeekCalendarController extends Controller
@@ -16,20 +18,74 @@ class WeekCalendarController extends Controller
 
     public function index()
     {
-        $currentDate = Carbon::now();
-        $week = (int) $currentDate->format('W');
-        $year = (int) $currentDate->format('o');
+        $now = Carbon::now();
+        $currentWeek = (int) $now->format('W');
+        $currentYear = (int) $now->format('o');
+
+        $week = (int) request('week', $currentWeek);
+        $year = (int) request('year', $currentYear);
         $search = trim((string) request('q', ''));
 
-        $currentWeekStart = $currentDate->copy()->setISODate($year, $week)->startOfWeek();
+        // Only auto-import from the latest CSV for the current week.
+        if ($week === $currentWeek && $year === $currentYear) {
+            $import = $this->planningCsvImportService->ensureLatestCsvImportedForWeek($week, $year);
+        } else {
+            $import = PlanningImport::query()
+                ->where('iso_week', $week)
+                ->where('iso_year', $year)
+                ->latest('imported_at')
+                ->first();
+        }
 
-        $import = $this->planningCsvImportService->ensureLatestCsvImportedForWeek($week, $year);
+        $data = $this->buildViewData($week, $year, $search, $import, $currentWeek, $currentYear);
+
+        return view('spa.week-calendar', array_merge($data, [
+            'token' => request('token'),
+        ]));
+    }
+
+    public function weekData(): JsonResponse
+    {
+        $now = Carbon::now();
+        $currentWeek = (int) $now->format('W');
+        $currentYear = (int) $now->format('o');
+
+        $week = (int) request('week', $currentWeek);
+        $year = (int) request('year', $currentYear);
+        $search = trim((string) request('q', ''));
+
+        $import = PlanningImport::query()
+            ->where('iso_week', $week)
+            ->where('iso_year', $year)
+            ->latest('imported_at')
+            ->first();
+
+        $data = $this->buildViewData($week, $year, $search, $import, $currentWeek, $currentYear);
+
+        $html = view('spa.partials.week-body', $data)->render();
+
+        return response()->json([
+            'html' => $html,
+            'week' => $week,
+            'year' => $year,
+            'isCurrentWeek' => $data['isCurrentWeek'],
+            'import' => $import ? [
+                'imported_at' => $import->imported_at?->format('d-m-Y H:i'),
+                'shift_count' => $data['resultShiftCount'],
+                'company_count' => $data['resultCompanyCount'],
+            ] : null,
+        ]);
+    }
+
+    private function buildViewData(int $week, int $year, string $search, ?PlanningImport $import, int $currentWeek, int $currentYear): array
+    {
+        $weekStart = Carbon::now()->setISODate($year, $week)->startOfWeek();
 
         $dayTemplate = [];
         $daysByDate = [];
 
         for ($i = 0; $i < 7; $i++) {
-            $day = $currentWeekStart->copy()->addDays($i);
+            $day = $weekStart->copy()->addDays($i);
             $dayData = [
                 'date' => $day->toDateString(),
                 'title' => $day->format('l'),
@@ -142,16 +198,16 @@ class WeekCalendarController extends Controller
         ksort($companies, SORT_NATURAL | SORT_FLAG_CASE);
         usort($workerOptions, fn (array $a, array $b): int => strnatcasecmp($a['label'], $b['label']));
 
-        return view('spa.week-calendar', [
+        return [
             'week' => $week,
             'year' => $year,
+            'isCurrentWeek' => $week === $currentWeek && $year === $currentYear,
             'companies' => array_values($companies),
-            'token' => request('token'),
             'search' => $search,
             'workerOptions' => array_values($workerOptions),
             'resultShiftCount' => $resultShiftCount,
             'resultCompanyCount' => count($companies),
             'import' => $import,
-        ]);
+        ];
     }
 }
