@@ -15,6 +15,34 @@ const RETRY_DELAY_MS = 5000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Parses a "YYYY-MM-DD" string as a local-time date (avoids the UTC shift that new Date(str) applies).
+const parseDateOnly = (value) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+// ISO-8601 week/year for a date, matching PHP Carbon's format('W')/format('o').
+const getIsoWeekYear = (date) => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const firstThursdayDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstThursdayDayNum + 3);
+  const week = 1 + Math.round((d - firstThursday) / (7 * 24 * 3600 * 1000));
+  return { week, year: d.getUTCFullYear() };
+};
+
+// download.js prefixes filenames with "<weekStart>_<weekEnd>_..."; use weekStart to
+// derive the ISO week/year so the server doesn't default to filtering by today's week.
+const extractIsoWeekYearFromFilename = (filename) => {
+  const match = filename.match(/^(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})_/);
+  if (!match) {
+    return null;
+  }
+  return getIsoWeekYear(parseDateOnly(match[1]));
+};
+
 const isTransientError = (error) =>
   error instanceof TypeError && /EAI_AGAIN|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT/i.test(error.message + (error.cause?.message ?? ""));
 
@@ -104,6 +132,16 @@ const countCsvDataRows = (csvBuffer) => {
   return lines.length - 1;
 };
 
+const withWeekParams = (uploadUrl, weekYear) => {
+  if (!weekYear) {
+    return uploadUrl;
+  }
+  const url = new URL(uploadUrl);
+  url.searchParams.set("week", String(weekYear.week));
+  url.searchParams.set("year", String(weekYear.year));
+  return url.toString();
+};
+
 const uploadCsvFile = async ({ csvPath, uploadUrl, fileFieldName, bearerToken, uploadMode, expectedStatus }) => {
   const filename = path.basename(csvPath);
   const csvBuffer = await fs.readFile(csvPath);
@@ -112,6 +150,14 @@ const uploadCsvFile = async ({ csvPath, uploadUrl, fileFieldName, bearerToken, u
   if (dataRowCount === 0) {
     console.log(`Skipping ${filename}: CSV has no data rows.`);
     return;
+  }
+
+  const weekYear = extractIsoWeekYearFromFilename(filename);
+  if (weekYear) {
+    console.log(`Resolved ${filename} to ISO week ${weekYear.week}/${weekYear.year} from filename.`);
+    uploadUrl = withWeekParams(uploadUrl, weekYear);
+  } else {
+    console.warn(`Could not determine week/year from filename ${filename}; server will default to the current week.`);
   }
 
   if (uploadMode === "multipart") {

@@ -364,7 +364,7 @@
             <div class="week-nav">
                 <button id="btn-prev-week" class="btn alt">&#8592; Previous week</button>
                 <span class="week-label" id="week-label">Week {{ $week }} ({{ $year }})</span>
-                <button id="btn-next-week" class="btn alt" {{ $isCurrentWeek ? 'disabled' : '' }}>Next week &#8594;</button>
+                <button id="btn-next-week" class="btn alt" {{ $hasNextWeekData ? '' : 'disabled' }}>Next week &#8594;</button>
             </div>
 
             <div class="toolbar">
@@ -427,6 +427,7 @@
             var displayWeek = {{ $week }};
             var displayYear = {{ $year }};
             var isCurrentWeek = {{ $isCurrentWeek ? 'true' : 'false' }};
+            var hasNextWeekData = {{ $hasNextWeekData ? 'true' : 'false' }};
 
             var btnPrev = document.getElementById('btn-prev-week');
             var btnNext = document.getElementById('btn-next-week');
@@ -469,7 +470,7 @@
             }
 
             function updateNavButtons() {
-                btnNext.disabled = isCurrentWeek;
+                btnNext.disabled = ! hasNextWeekData;
             }
 
             function buildPageUrl(week, year) {
@@ -499,6 +500,7 @@
                     displayWeek = data.week;
                     displayYear = data.year;
                     isCurrentWeek = data.isCurrentWeek;
+                    hasNextWeekData = data.hasNextWeekData;
 
                     weekLabel.textContent = 'Week ' + data.week + ' (' + data.year + ')';
                     weekBody.innerHTML = data.html;

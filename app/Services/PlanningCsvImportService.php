@@ -28,6 +28,8 @@ class PlanningCsvImportService
     private const COLUMN_END_TIME = 'Eindtijd';
     private const COLUMN_TYPE_1 = 'Soort - Naam 1';
     private const COLUMN_TYPE_2 = 'Soort - Naam 2';
+    // Some export weeks collapse both columns into a single 'Soort - Naam' column.
+    private const COLUMN_TYPE_FALLBACK = 'Soort - Naam';
     private const COLUMN_WORKER_REG = 'Ingeplande entiteiten - Flexwerker - Registratienummer ';
     private const COLUMN_WORKER_NAME = 'Ingeplande entiteiten - Flexwerker - Naam';
     private const COLUMN_WORKER_STATUS = 'Ingeplande entiteiten - Flexwerker - Status';
@@ -186,6 +188,8 @@ class PlanningCsvImportService
                     continue;
                 }
 
+                [$shiftType1, $shiftType2] = $this->resolveShiftTypes($row);
+
                 $rowCount++;
 
                 if ($shiftEndAt->lessThanOrEqualTo($shiftStartAt)) {
@@ -205,8 +209,8 @@ class PlanningCsvImportService
                     'end_time' => $endTime,
                     'shift_start_at' => $shiftStartAt,
                     'shift_end_at' => $shiftEndAt,
-                    'shift_type_1' => $this->clean($row[self::COLUMN_TYPE_1] ?? null),
-                    'shift_type_2' => $this->clean($row[self::COLUMN_TYPE_2] ?? null),
+                    'shift_type_1' => $shiftType1,
+                    'shift_type_2' => $shiftType2,
                 ];
 
                 $shiftKey = $this->buildShiftKey($shiftData);
@@ -368,6 +372,22 @@ class PlanningCsvImportService
             mb_strtolower((string) $shiftData['shift_type_1']),
             mb_strtolower((string) $shiftData['shift_type_2']),
         ]));
+    }
+
+    /**
+     * @param array<string, string|null> $row
+     * @return array{0: string|null, 1: string|null}
+     */
+    private function resolveShiftTypes(array $row): array
+    {
+        if (array_key_exists(self::COLUMN_TYPE_1, $row) || array_key_exists(self::COLUMN_TYPE_2, $row)) {
+            return [
+                $this->clean($row[self::COLUMN_TYPE_1] ?? null),
+                $this->clean($row[self::COLUMN_TYPE_2] ?? null),
+            ];
+        }
+
+        return [$this->clean($row[self::COLUMN_TYPE_FALLBACK] ?? null), null];
     }
 
     private function toDriverFlag(mixed $value): bool

@@ -69,12 +69,23 @@ class WeekCalendarController extends Controller
             'week' => $week,
             'year' => $year,
             'isCurrentWeek' => $data['isCurrentWeek'],
+            'hasNextWeekData' => $data['hasNextWeekData'],
             'import' => $import ? [
                 'imported_at' => $import->imported_at?->format('d-m-Y H:i'),
                 'shift_count' => $data['resultShiftCount'],
                 'company_count' => $data['resultCompanyCount'],
             ] : null,
         ]);
+    }
+
+    private function nextWeekHasData(int $week, int $year): bool
+    {
+        $nextWeekStart = Carbon::now()->setISODate($year, $week)->startOfWeek()->addWeek();
+
+        return PlanningImport::query()
+            ->where('iso_week', (int) $nextWeekStart->format('W'))
+            ->where('iso_year', (int) $nextWeekStart->format('o'))
+            ->exists();
     }
 
     private function buildViewData(int $week, int $year, string $search, ?PlanningImport $import, int $currentWeek, int $currentYear): array
@@ -202,6 +213,7 @@ class WeekCalendarController extends Controller
             'week' => $week,
             'year' => $year,
             'isCurrentWeek' => $week === $currentWeek && $year === $currentYear,
+            'hasNextWeekData' => $this->nextWeekHasData($week, $year),
             'companies' => array_values($companies),
             'search' => $search,
             'workerOptions' => array_values($workerOptions),

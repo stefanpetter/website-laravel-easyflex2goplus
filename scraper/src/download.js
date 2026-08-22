@@ -53,8 +53,14 @@ const matchesProfileLabel = (candidate, requested) =>
 
 const DEFAULT_EXPORT_PROFILE_LABEL = "def export planning chauffeur";
 
-const getCurrentWeekRange = () => {
-  const now = new Date();
+// Parses a "YYYY-MM-DD" string as a local-time date (avoids the UTC shift that new Date(str) applies).
+const parseDateOnly = (value) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const getWeekRange = (offsetDays = 0) => {
+  const now = addDays(new Date(), offsetDays);
   const mondayBasedDayIndex = (now.getDay() + 6) % 7;
   const monday = addDays(now, -mondayBasedDayIndex);
   const sunday = addDays(monday, 6);
@@ -63,6 +69,8 @@ const getCurrentWeekRange = () => {
     end: formatDate(sunday)
   };
 };
+
+const getCurrentWeekRange = () => getWeekRange(0);
 
 const buildPlanningUrl = () => {
   const baseUrl = process.env.PLANNING_URL_BASE || "https://uniepool.easyflex2go.nl/planning/assigner";
@@ -79,6 +87,32 @@ const buildPlanningUrl = () => {
     s: ""
   });
   return `${baseUrl}?${params.toString()}`;
+};
+
+// Shifts the ps/pe (period start/end) query params of the planning view's own URL by offsetDays,
+// preserving every other param (filters, view, entity selection) exactly as the SPA set them.
+const shiftWeekInPlanningUrl = (currentUrl, offsetDays) => {
+  const parsed = new URL(currentUrl);
+  const ps = parsed.searchParams.get("ps");
+  const pe = parsed.searchParams.get("pe");
+  if (!ps || !pe) {
+    throw new Error(`Could not find ps/pe date params in planning URL: ${currentUrl}`);
+  }
+  const newPs = formatDate(addDays(parseDateOnly(ps), offsetDays));
+  const newPe = formatDate(addDays(parseDateOnly(pe), offsetDays));
+  parsed.searchParams.set("ps", newPs);
+  parsed.searchParams.set("pe", newPe);
+  return { url: parsed.toString(), start: newPs, end: newPe };
+};
+
+const waitForPlanningViewReady = async (page) => {
+  await Promise.race([
+    page.waitForFunction(() => window.location.href.includes("/planning"), { timeout: 30000 }),
+    page.getByTestId("export-planning-button").waitFor({ timeout: 30000 }),
+    page.getByRole("button", { name: /exporteren/i }).first().waitFor({ timeout: 30000 })
+  ]);
+  console.log(`Planning view ready: ${page.url()}`);
+  await page.waitForTimeout(3000);
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -194,148 +228,162 @@ try {
   console.log("Clicking Planning submenu item: Unie-Pool Peroneel B.V. Planning...");
   await planningSubmenuItem.click({ noWaitAfter: true });
   console.log("Waiting for planning view to be ready...");
-  await Promise.race([
-    page.waitForFunction(() => window.location.href.includes("/planning"), { timeout: 30000 }),
-    page.getByTestId("export-planning-button").waitFor({ timeout: 30000 }),
-    page.getByRole("button", { name: /exporteren/i }).first().waitFor({ timeout: 30000 })
-  ]);
-  console.log(`Planning view ready: ${page.url()}`);
-  await page.waitForTimeout(3000);
+  await waitForPlanningViewReady(page);
 
-  console.log("Opening export modal...");
-  const exportOpenCandidates = [
-    process.env.DOWNLOAD_BUTTON_SELECTOR ? page.locator(process.env.DOWNLOAD_BUTTON_SELECTOR).first() : null,
-    page.getByTestId("export-planning-button").first(),
-    page.getByRole("button", { name: /^Exporteren$/i }).first(),
-    page.getByRole("link", { name: /^Exporteren$/i }).first()
-  ].filter(Boolean);
+  const exportPlanningWeek = async (weekTag) => {
+    console.log(`Opening export modal for ${weekTag.label} week (${weekTag.start} - ${weekTag.end})...`);
+    const exportOpenCandidates = [
+      process.env.DOWNLOAD_BUTTON_SELECTOR ? page.locator(process.env.DOWNLOAD_BUTTON_SELECTOR).first() : null,
+      page.getByTestId("export-planning-button").first(),
+      page.getByRole("button", { name: /^Exporteren$/i }).first(),
+      page.getByRole("link", { name: /^Exporteren$/i }).first()
+    ].filter(Boolean);
 
-  let exportTrigger = null;
-  for (const candidate of exportOpenCandidates) {
-    if ((await candidate.count()) > 0 && (await candidate.isVisible().catch(() => false))) {
-      exportTrigger = candidate;
-      break;
-    }
-  }
-
-  if (!exportTrigger) {
-    throw new Error("Could not find Exporteren trigger on planning page.");
-  }
-
-  await exportTrigger.click();
-
-  const exportDialog = page.getByRole("dialog").last();
-  await exportDialog.waitFor({ timeout: 20000 });
-
-  const profileLabel = (process.env.EXPORT_PROFILE_LABEL || DEFAULT_EXPORT_PROFILE_LABEL).trim();
-  const escapedProfileLabel = profileLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const profileRegex = new RegExp(`^${escapedProfileLabel}$`, "i");
-  const discoveredProfiles = new Set();
-
-  console.log(`Selecting export profile: ${profileLabel}...`);
-  let profileSelected = false;
-
-  const selectsInDialog = exportDialog.locator("select");
-  const selectCount = await selectsInDialog.count();
-  for (let s = 0; s < selectCount && !profileSelected; s += 1) {
-    const selectInDialog = selectsInDialog.nth(s);
-    const options = selectInDialog.locator("option");
-    const optionsCount = await options.count();
-    for (let i = 0; i < optionsCount; i += 1) {
-      const optionText = (await options.nth(i).innerText()).trim();
-      if (optionText.length > 0) {
-        discoveredProfiles.add(optionText);
-      }
-      if (matchesProfileLabel(optionText, profileLabel)) {
-        await selectInDialog.selectOption({ index: i });
-        profileSelected = true;
+    let exportTrigger = null;
+    for (const candidate of exportOpenCandidates) {
+      if ((await candidate.count()) > 0 && (await candidate.isVisible().catch(() => false))) {
+        exportTrigger = candidate;
         break;
       }
     }
-  }
 
-  if (!profileSelected) {
-    const combos = exportDialog.getByRole("combobox");
-    const comboCount = await combos.count();
-    for (let i = 0; i < comboCount && !profileSelected; i += 1) {
-      const combo = combos.nth(i);
-      if (!(await combo.isVisible().catch(() => false))) {
-        continue;
-      }
+    if (!exportTrigger) {
+      throw new Error("Could not find Exporteren trigger on planning page.");
+    }
 
-      await combo.click().catch(() => {});
+    await exportTrigger.click();
 
-      const roleOptions = page.getByRole("option");
-      const roleOptionsCount = await roleOptions.count();
-      for (let r = 0; r < roleOptionsCount; r += 1) {
-        const optionText = (await roleOptions.nth(r).innerText().catch(() => "")).trim();
+    const exportDialog = page.getByRole("dialog").last();
+    await exportDialog.waitFor({ timeout: 20000 });
+
+    const profileLabel = (process.env.EXPORT_PROFILE_LABEL || DEFAULT_EXPORT_PROFILE_LABEL).trim();
+    const escapedProfileLabel = profileLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const profileRegex = new RegExp(`^${escapedProfileLabel}$`, "i");
+    const discoveredProfiles = new Set();
+
+    console.log(`Selecting export profile: ${profileLabel}...`);
+    let profileSelected = false;
+
+    const selectsInDialog = exportDialog.locator("select");
+    const selectCount = await selectsInDialog.count();
+    for (let s = 0; s < selectCount && !profileSelected; s += 1) {
+      const selectInDialog = selectsInDialog.nth(s);
+      const options = selectInDialog.locator("option");
+      const optionsCount = await options.count();
+      for (let i = 0; i < optionsCount; i += 1) {
+        const optionText = (await options.nth(i).innerText()).trim();
         if (optionText.length > 0) {
           discoveredProfiles.add(optionText);
         }
-      }
-
-      let roleOptionIndex = -1;
-      for (let r = 0; r < roleOptionsCount; r += 1) {
-        const optionText = (await roleOptions.nth(r).innerText().catch(() => "")).trim();
         if (matchesProfileLabel(optionText, profileLabel)) {
-          roleOptionIndex = r;
+          await selectInDialog.selectOption({ index: i });
+          profileSelected = true;
           break;
         }
       }
+    }
 
-      if (roleOptionIndex !== -1) {
-        await roleOptions.nth(roleOptionIndex).click();
-        profileSelected = true;
-        break;
-      }
+    if (!profileSelected) {
+      const combos = exportDialog.getByRole("combobox");
+      const comboCount = await combos.count();
+      for (let i = 0; i < comboCount && !profileSelected; i += 1) {
+        const combo = combos.nth(i);
+        if (!(await combo.isVisible().catch(() => false))) {
+          continue;
+        }
 
-      const textOption = page.getByText(profileRegex).first();
-      if ((await textOption.count()) > 0 && (await textOption.isVisible().catch(() => false))) {
-        await textOption.click();
-        profileSelected = true;
-        break;
-      }
+        await combo.click().catch(() => {});
 
-      await combo.fill(profileLabel).catch(() => {});
-      await combo.press("Enter").catch(() => {});
+        const roleOptions = page.getByRole("option");
+        const roleOptionsCount = await roleOptions.count();
+        for (let r = 0; r < roleOptionsCount; r += 1) {
+          const optionText = (await roleOptions.nth(r).innerText().catch(() => "")).trim();
+          if (optionText.length > 0) {
+            discoveredProfiles.add(optionText);
+          }
+        }
 
-      const comboValue = await combo.inputValue().catch(() => "");
-      if (matchesProfileLabel(comboValue, profileLabel)) {
-        profileSelected = true;
-        break;
+        let roleOptionIndex = -1;
+        for (let r = 0; r < roleOptionsCount; r += 1) {
+          const optionText = (await roleOptions.nth(r).innerText().catch(() => "")).trim();
+          if (matchesProfileLabel(optionText, profileLabel)) {
+            roleOptionIndex = r;
+            break;
+          }
+        }
+
+        if (roleOptionIndex !== -1) {
+          await roleOptions.nth(roleOptionIndex).click();
+          profileSelected = true;
+          break;
+        }
+
+        const textOption = page.getByText(profileRegex).first();
+        if ((await textOption.count()) > 0 && (await textOption.isVisible().catch(() => false))) {
+          await textOption.click();
+          profileSelected = true;
+          break;
+        }
+
+        await combo.fill(profileLabel).catch(() => {});
+        await combo.press("Enter").catch(() => {});
+
+        const comboValue = await combo.inputValue().catch(() => "");
+        if (matchesProfileLabel(comboValue, profileLabel)) {
+          profileSelected = true;
+          break;
+        }
       }
     }
-  }
 
-  if (!profileSelected) {
-    const discoveredList = [...discoveredProfiles].slice(0, 20).join(" | ");
-    throw new Error(
-      `Could not select "${profileLabel}" in geselecteerde kolommen. Found profiles/options: ${discoveredList || "(none detected)"}`
-    );
-  }
+    if (!profileSelected) {
+      const discoveredList = [...discoveredProfiles].slice(0, 20).join(" | ");
+      throw new Error(
+        `Could not select "${profileLabel}" in geselecteerde kolommen. Found profiles/options: ${discoveredList || "(none detected)"}`
+      );
+    }
 
-  const profileApplyDelayMs = Number(process.env.EXPORT_PROFILE_APPLY_DELAY_MS || 2500);
-  if (profileApplyDelayMs > 0) {
-    console.log(`Waiting ${profileApplyDelayMs}ms for selected export profile columns to apply...`);
-    await page.waitForTimeout(profileApplyDelayMs);
-  }
+    const profileApplyDelayMs = Number(process.env.EXPORT_PROFILE_APPLY_DELAY_MS || 2500);
+    if (profileApplyDelayMs > 0) {
+      console.log(`Waiting ${profileApplyDelayMs}ms for selected export profile columns to apply...`);
+      await page.waitForTimeout(profileApplyDelayMs);
+    }
 
-  console.log("Waiting for download to start...");
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    exportDialog.getByRole("button", { name: /downloaden/i }).first().click()
-  ]);
+    console.log("Waiting for download to start...");
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      exportDialog.getByRole("button", { name: /downloaden/i }).first().click()
+    ]);
 
-  const suggestedFilename = download.suggestedFilename();
-  const filePath = path.resolve(downloadsDir, suggestedFilename);
-  await download.saveAs(filePath);
+    // Prefix with the week's date range so the current-week and next-week files never collide,
+    // even if the site suggests the same filename for both exports.
+    const suggestedFilename = download.suggestedFilename();
+    const uniqueFilename = `${weekTag.start}_${weekTag.end}_${suggestedFilename}`;
+    const filePath = path.resolve(downloadsDir, uniqueFilename);
+    await download.saveAs(filePath);
 
-  console.log(`Download completed: ${filePath}`);
+    console.log(`Download completed for ${weekTag.label} week: ${filePath}`);
 
-  if (process.env.SCREENSHOT_AFTER_DOWNLOAD === "true") {
-    const screenshotPath = path.resolve(downloadsDir, "after-download.png");
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-    console.log(`Saved screenshot: ${screenshotPath}`);
+    if (process.env.SCREENSHOT_AFTER_DOWNLOAD === "true") {
+      const screenshotPath = path.resolve(downloadsDir, `after-download-${weekTag.label}.png`);
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      console.log(`Saved screenshot: ${screenshotPath}`);
+    }
+
+    return filePath;
+  };
+
+  const currentWeekRange = getWeekRange(0);
+  await exportPlanningWeek({ label: "current", ...currentWeekRange });
+
+  if (process.env.EXPORT_NEXT_WEEK !== "false") {
+    console.log("Navigating to next week in planning view...");
+    const { url: nextWeekUrl, start, end } = shiftWeekInPlanningUrl(page.url(), 7);
+    await page.goto(nextWeekUrl, { waitUntil: "domcontentloaded" });
+    console.log("Waiting for next week planning view to be ready...");
+    await waitForPlanningViewReady(page);
+
+    await exportPlanningWeek({ label: "next", start, end });
   }
 } catch (error) {
   console.error("Automation failed:", error);

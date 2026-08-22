@@ -75,6 +75,13 @@ npm run download
 
 Downloaded files will be saved in `downloads/`.
 
+By default the script exports both the current week and the following week in the same
+run: it downloads the current week first, then navigates the planning view forward by
+shifting the `ps`/`pe` date params of its own URL by 7 days and repeats the export. Each
+downloaded file is prefixed with its week's date range (e.g. `2026-08-17_2026-08-23_...`)
+so the two exports never overwrite each other. Set `EXPORT_NEXT_WEEK=false` in `.env` to
+only export the current week.
+
 ## 6) Convert XLSX to CSV
 
 If the downloaded file is an `.xlsx`, convert it to `.csv` with:
