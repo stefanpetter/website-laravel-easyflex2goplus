@@ -13,6 +13,22 @@
                 <header class="company-head">
                     <div class="company-title">{{ $company['company_name'] }}</div>
                     <div class="company-count">{{ $company['shift_count'] }} shifts</div>
+                    @if (in_array($accessScope ?? '', ['admin', 'view_all'], true) && isset($companyTokens[$company['company_name']]))
+                        <div class="company-actions">
+                            <button
+                                type="button"
+                                class="btn alt small btn-copy-company-url"
+                                data-url="{{ $companyTokens[$company['company_name']]['url'] }}"
+                            >Copy company link</button>
+                            @if ($accessScope === 'admin')
+                                <button
+                                    type="button"
+                                    class="btn alt small btn-renew-company-token"
+                                    data-company-id="{{ $companyTokens[$company['company_name']]['id'] }}"
+                                >Renew token</button>
+                            @endif
+                        </div>
+                    @endif
                 </header>
 
                 <div class="grid">

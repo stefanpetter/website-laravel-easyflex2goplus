@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Spa;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompanyAccessToken;
 use App\Models\PlanningImport;
 use App\Models\PlanningShift;
 use App\Services\PlanningCsvImportService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class WeekCalendarController extends Controller
@@ -16,7 +18,7 @@ class WeekCalendarController extends Controller
 	{
 	}
 
-    public function index()
+    public function index(Request $request)
     {
         $now = Carbon::now();
         $currentWeek = (int) $now->format('W');
@@ -37,14 +39,19 @@ class WeekCalendarController extends Controller
                 ->first();
         }
 
-        $data = $this->buildViewData($week, $year, $search, $import, $currentWeek, $currentYear);
+        $accessScope = (string) $request->attributes->get('access_scope');
+        $restrictCompanyName = $request->attributes->get('access_company_name');
+
+        $data = $this->buildViewData($week, $year, $search, $import, $currentWeek, $currentYear, $restrictCompanyName);
+        $data = array_merge($data, $this->buildTokenSharingData($accessScope, $data['companies']));
 
         return view('spa.week-calendar', array_merge($data, [
             'token' => request('token'),
+            'accessScope' => $accessScope,
         ]));
     }
 
-    public function weekData(): JsonResponse
+    public function weekData(Request $request): JsonResponse
     {
         $now = Carbon::now();
         $currentWeek = (int) $now->format('W');
@@ -60,7 +67,12 @@ class WeekCalendarController extends Controller
             ->latest('imported_at')
             ->first();
 
-        $data = $this->buildViewData($week, $year, $search, $import, $currentWeek, $currentYear);
+        $accessScope = (string) $request->attributes->get('access_scope');
+        $restrictCompanyName = $request->attributes->get('access_company_name');
+
+        $data = $this->buildViewData($week, $year, $search, $import, $currentWeek, $currentYear, $restrictCompanyName);
+        $data = array_merge($data, $this->buildTokenSharingData($accessScope, $data['companies']));
+        $data['accessScope'] = $accessScope;
 
         $html = view('spa.partials.week-body', $data)->render();
 
@@ -78,6 +90,44 @@ class WeekCalendarController extends Controller
         ]);
     }
 
+    public function renewCompanyToken(Request $request, CompanyAccessToken $companyAccessToken): JsonResponse
+    {
+        if ($request->attributes->get('access_scope') !== 'admin') {
+            abort(403);
+        }
+
+        $companyAccessToken->update(['token' => CompanyAccessToken::generateToken()]);
+
+        return response()->json([
+            'company_name' => $companyAccessToken->company_name,
+            'token' => $companyAccessToken->token,
+            'url' => route('calendar.week', ['token' => $companyAccessToken->token]),
+        ]);
+    }
+
+    /**
+     * Provision (or fetch) a share URL/token per visible company for admin and view-all tokens.
+     */
+    private function buildTokenSharingData(string $accessScope, array $companies): array
+    {
+        if (! in_array($accessScope, ['admin', 'view_all'], true)) {
+            return ['companyTokens' => []];
+        }
+
+        $companyTokens = [];
+
+        foreach ($companies as $company) {
+            $companyToken = CompanyAccessToken::findOrCreateForCompany($company['company_name']);
+
+            $companyTokens[$company['company_name']] = [
+                'id' => $companyToken->id,
+                'url' => route('calendar.week', ['token' => $companyToken->token]),
+            ];
+        }
+
+        return ['companyTokens' => $companyTokens];
+    }
+
     private function nextWeekHasData(int $week, int $year): bool
     {
         $nextWeekStart = Carbon::now()->setISODate($year, $week)->startOfWeek()->addWeek();
@@ -88,7 +138,7 @@ class WeekCalendarController extends Controller
             ->exists();
     }
 
-    private function buildViewData(int $week, int $year, string $search, ?PlanningImport $import, int $currentWeek, int $currentYear): array
+    private function buildViewData(int $week, int $year, string $search, ?PlanningImport $import, int $currentWeek, int $currentYear, ?string $restrictCompanyName = null): array
     {
         $weekStart = Carbon::now()->setISODate($year, $week)->startOfWeek();
 
@@ -126,6 +176,12 @@ class WeekCalendarController extends Controller
                 $dayDate = $shift->shift_date?->toDateString();
 
                 if ($dayDate === null || ! isset($daysByDate[$dayDate])) {
+                    continue;
+                }
+
+                $companyName = $shift->company_name ?: 'Unknown company';
+
+                if ($restrictCompanyName !== null && $companyName !== $restrictCompanyName) {
                     continue;
                 }
 

@@ -56,6 +56,8 @@ return [
 
     'url_access_token' => env('URL_ACCESS_TOKEN'),
 
+    'admin_access_token' => env('ADMIN_ACCESS_TOKEN'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

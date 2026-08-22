@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Laravel') }} - Flexworker Week Planner</title>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
     <style>
@@ -181,6 +182,24 @@
             border-radius: 999px;
             background: #fff;
             padding: 3px 8px;
+        }
+
+        .company-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn.small {
+            padding: 5px 10px;
+            font-size: .8rem;
+        }
+
+        .copy-feedback {
+            font-size: .78rem;
+            color: var(--accent-dark);
+            font-weight: 600;
         }
 
         .grid {
@@ -553,6 +572,78 @@
             history.replaceState({ week: displayWeek, year: displayYear }, '', window.location.href);
 
             updateNavButtons();
+        })();
+    </script>
+    <script>
+        (function () {
+            var currentToken = {{ Js::from($token) }};
+            var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            var weekBody = document.getElementById('week-body');
+
+            function withToken(url) {
+                var separator = url.indexOf('?') === -1 ? '?' : '&';
+                return currentToken ? url + separator + 'token=' + encodeURIComponent(currentToken) : url;
+            }
+
+            function showFeedback(button, message) {
+                var feedback = button.parentElement.querySelector('.copy-feedback');
+                if (! feedback) {
+                    feedback = document.createElement('span');
+                    feedback.className = 'copy-feedback';
+                    button.parentElement.appendChild(feedback);
+                }
+                feedback.textContent = message;
+                window.clearTimeout(feedback._timeout);
+                feedback._timeout = window.setTimeout(function () {
+                    feedback.textContent = '';
+                }, 2500);
+            }
+
+            weekBody.addEventListener('click', function (event) {
+                var copyBtn = event.target.closest('.btn-copy-company-url');
+                if (copyBtn) {
+                    var url = copyBtn.getAttribute('data-url');
+                    navigator.clipboard.writeText(url).then(function () {
+                        showFeedback(copyBtn, 'Link copied!');
+                    }).catch(function () {
+                        showFeedback(copyBtn, 'Could not copy link.');
+                    });
+                    return;
+                }
+
+                var renewBtn = event.target.closest('.btn-renew-company-token');
+                if (renewBtn) {
+                    var companyId = renewBtn.getAttribute('data-company-id');
+                    if (! companyId) {
+                        return;
+                    }
+
+                    renewBtn.disabled = true;
+
+                    fetch(withToken('/companies/' + companyId + '/renew-token'), {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                        },
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var copyBtn = renewBtn.parentElement.querySelector('.btn-copy-company-url');
+                        if (copyBtn) {
+                            copyBtn.setAttribute('data-url', data.url);
+                        }
+                        showFeedback(renewBtn, 'Token renewed!');
+                    })
+                    .catch(function () {
+                        showFeedback(renewBtn, 'Failed to renew token.');
+                    })
+                    .finally(function () {
+                        renewBtn.disabled = false;
+                    });
+                }
+            });
         })();
     </script>
 </body>
