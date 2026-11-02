@@ -185,9 +185,23 @@ class WeekCalendarController extends Controller
                     continue;
                 }
 
-                $assignments = $shift->assignments->map(function ($assignment) use ($search) {
+                $assignments = $shift->assignments->map(function ($assignment) use ($search, $shift) {
                     $workerName = (string) ($assignment->worker_name ?? 'Unknown worker');
                     $registration = (string) ($assignment->worker_registration_number ?? '');
+                    $startTime = substr((string) ($assignment->start_time ?? $shift->start_time), 0, 5);
+                    $endTime = substr((string) ($assignment->end_time ?? $shift->end_time), 0, 5);
+                    $statusLabels = collect([
+                        'absence' => $assignment->absence_status,
+                        'worker' => $assignment->worker_status,
+                        'planning' => $assignment->planning_status,
+                    ])->filter(fn (?string $status, string $source): bool => filled($status) && (
+                        $source === 'absence' || in_array(Str::lower(rtrim(trim($status), '.')), [
+                            'vakantie', 'vrij', 'reserve', 'stop', 'ziek', 'no show',
+                        ], true)
+                    ))->map(fn (string $status): string => trim($status))
+                        ->unique(fn (string $status): string => Str::lower(rtrim($status, '.')))
+                        ->values()
+                        ->all();
                     $matchesSearch = $search === ''
                         ? false
                         : Str::contains(Str::lower($workerName), Str::lower($search))
@@ -198,8 +212,12 @@ class WeekCalendarController extends Controller
                         'registration' => $registration,
                         'worker_status' => $assignment->worker_status,
                         'planning_status' => $assignment->planning_status,
+                        'status_labels' => $statusLabels,
                         'is_driver' => $assignment->is_driver,
                         'matches_search' => $matchesSearch,
+                        'time_label' => sprintf('%s - %s', $startTime, $endTime),
+                        'has_different_schedule' => $startTime !== substr((string) $shift->start_time, 0, 5)
+                            || $endTime !== substr((string) $shift->end_time, 0, 5),
                     ];
                 })->values()->all();
 

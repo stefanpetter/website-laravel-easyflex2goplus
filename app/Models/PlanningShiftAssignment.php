@@ -16,7 +16,10 @@ class PlanningShiftAssignment extends Model
         'worker_name',
         'worker_status',
         'planning_status',
+        'absence_status',
         'is_driver',
+        'start_time',
+        'end_time',
     ];
 
     protected $casts = [

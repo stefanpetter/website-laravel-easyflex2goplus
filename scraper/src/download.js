@@ -51,7 +51,7 @@ const normalizeProfileLabel = (value) =>
 const matchesProfileLabel = (candidate, requested) =>
   normalizeProfileLabel(candidate) === normalizeProfileLabel(requested);
 
-const DEFAULT_EXPORT_PROFILE_LABEL = "def export planning chauffeur";
+const DEFAULT_EXPORT_PROFILE_LABEL = "EF2GO Plus uitgebreid";
 
 // Parses a "YYYY-MM-DD" string as a local-time date (avoids the UTC shift that new Date(str) applies).
 const parseDateOnly = (value) => {

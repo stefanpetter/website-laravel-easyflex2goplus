@@ -43,7 +43,7 @@ For your case:
 - `SCRAPER_USERNAME=<your login username>` (use `SCRAPER_USERNAME` to avoid conflicts with the Windows built-in `USERNAME` environment variable)
 - `LOGIN_ROLE=Relatie`
 - `USE_PLANNING_CURRENT_WEEK=true`
-- `EXPORT_PROFILE_LABEL=def export planning chauffeur`
+- `EXPORT_PROFILE_LABEL="EF2GO Plus uitgebreid"`
 - Keep `HEADLESS=false` while validating flow
 
 When `USE_PLANNING_CURRENT_WEEK=true`, the script builds:
@@ -91,6 +91,17 @@ npm run convert:csv
 ```
 
 The converter processes all `.xlsx` files in `downloads/` and writes a `.csv` file with the same base name using the first worksheet.
+
+The expanded profile includes `Ingeplande entiteiten - Starttijd` and
+`Ingeplande entiteiten - Eindtijd`. These times are stored per worker assignment;
+workers remain in their parent shift and differing times appear beside their name
+in the calendar. Older exports without these columns use the parent shift times.
+`Ingeplande entiteiten - Afwezigheid` is stored per assignment and shown on the
+person card, including vacation, leave, reserve, illness, and no-show statuses.
+Exceptional worker/planning statuses such as `Stop` also appear; routine `Actief`
+labels are hidden. Older exports without absence data remain compatible.
+The expanded profile includes `Functienaam`. Keep `Ingeplande entiteiten - Status`
+in the profile if planning statuses are required; the inspected profile omits it.
 
 
 ## 7) Upload CSV (POST)

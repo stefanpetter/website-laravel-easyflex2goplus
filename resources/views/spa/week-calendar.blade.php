@@ -297,6 +297,47 @@
             border-color: #8ed5a8;
         }
 
+        .worker-time {
+            width: fit-content;
+            margin-top: 3px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: #fef08a;
+            color: #713f12;
+            font-weight: 700;
+        }
+
+        .worker-status {
+            width: fit-content;
+            max-width: 100%;
+            margin-top: 3px;
+            padding: 2px 4px;
+            border: 1px solid #bfdbfe;
+            border-radius: 3px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+        .worker-status-red {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .worker-status-yellow {
+            border-color: #eab308;
+            background: #fef08a;
+            color: #3f3b00;
+        }
+
+        .worker-status-purple {
+            border-color: #d8b4fe;
+            background: #f3e8ff;
+            color: #7e22ce;
+        }
+
         .driver-line {
             margin-top: 4px;
             font-size: .76rem;

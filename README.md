@@ -31,6 +31,18 @@ Use token access in URL, for example: `http://localhost/?token=token123`
 ./vendor/bin/sail down
 ```
 
+## Schedule Regression Check
+
+After running `./vendor/bin/sail artisan migrate`, run:
+
+```bash
+./vendor/bin/sail php tests/planning-schedules.php
+```
+
+This checks individual worker schedules, duplicates, overnight shifts, calendar
+rendering, person-card statuses, and older CSV exports. Fixture database changes
+are rolled back.
+
 ## If Docker Fails in WSL2
 
 If you get `/usr/bin/docker: Input/output error`:

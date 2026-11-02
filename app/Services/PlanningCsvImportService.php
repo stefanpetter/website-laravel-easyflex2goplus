@@ -34,7 +34,10 @@ class PlanningCsvImportService
     private const COLUMN_WORKER_NAME = 'Ingeplande entiteiten - Flexwerker - Naam';
     private const COLUMN_WORKER_STATUS = 'Ingeplande entiteiten - Flexwerker - Status';
     private const COLUMN_PLANNING_STATUS = 'Ingeplande entiteiten - Status';
+    private const COLUMN_ABSENCE_STATUS = 'Ingeplande entiteiten - Afwezigheid';
     private const COLUMN_DRIVER = 'Ingeplande entiteiten - Chauffeur';
+    private const COLUMN_WORKER_START_TIME = 'Ingeplande entiteiten - Starttijd';
+    private const COLUMN_WORKER_END_TIME = 'Ingeplande entiteiten - Eindtijd';
 
     public function importFromStoredPath(string $storedPath, int $isoWeek, int $isoYear): PlanningImport
     {
@@ -157,8 +160,10 @@ class PlanningCsvImportService
 
             foreach ($rows as $row) {
                 $dateValue = $this->clean($row[self::COLUMN_DATE] ?? null);
-                $startTime = $this->clean($row[self::COLUMN_START_TIME] ?? null);
-                $endTime = $this->clean($row[self::COLUMN_END_TIME] ?? null);
+                $workerStartTime = $this->clean($row[self::COLUMN_WORKER_START_TIME] ?? null);
+                $workerEndTime = $this->clean($row[self::COLUMN_WORKER_END_TIME] ?? null);
+                $startTime = $this->clean($row[self::COLUMN_START_TIME] ?? null) ?? $workerStartTime;
+                $endTime = $this->clean($row[self::COLUMN_END_TIME] ?? null) ?? $workerEndTime;
                 $companyName = $this->clean($row[self::COLUMN_COMPANY] ?? null);
                 $workerName = $this->clean($row[self::COLUMN_WORKER_NAME] ?? null);
                 $registrationNumber = $this->clean($row[self::COLUMN_WORKER_REG] ?? null);
@@ -187,6 +192,9 @@ class PlanningCsvImportService
                 if ($shiftStartAt === null || $shiftEndAt === null) {
                     continue;
                 }
+
+                $assignmentStartTime = ($this->parseDateTime($shiftDate, $workerStartTime ?? $startTime) ?? $shiftStartAt)->format('H:i:s');
+                $assignmentEndTime = ($this->parseDateTime($shiftDate, $workerEndTime ?? $endTime) ?? $shiftEndAt)->format('H:i:s');
 
                 [$shiftType1, $shiftType2] = $this->resolveShiftTypes($row);
 
@@ -224,6 +232,8 @@ class PlanningCsvImportService
                     $shiftIdsByKey[$shiftKey],
                     mb_strtolower((string) $registrationNumber),
                     mb_strtolower((string) $workerName),
+                    $assignmentStartTime,
+                    $assignmentEndTime,
                 ]));
 
                 if (isset($assignmentDedup[$assignmentKey])) {
@@ -236,7 +246,10 @@ class PlanningCsvImportService
                     'worker_name' => $workerName,
                     'worker_status' => $this->clean($row[self::COLUMN_WORKER_STATUS] ?? null),
                     'planning_status' => $this->clean($row[self::COLUMN_PLANNING_STATUS] ?? null),
+                    'absence_status' => $this->clean($row[self::COLUMN_ABSENCE_STATUS] ?? null),
                     'is_driver' => $this->toDriverFlag($row[self::COLUMN_DRIVER] ?? null),
+                    'start_time' => $assignmentStartTime,
+                    'end_time' => $assignmentEndTime,
                 ]);
 
                 $assignmentDedup[$assignmentKey] = true;

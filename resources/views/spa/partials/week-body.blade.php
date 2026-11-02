@@ -68,6 +68,20 @@
                                                     'driver' => $assignment['is_driver'],
                                                 ])>
                                                     <strong>{{ $assignment['worker_name'] }}</strong>
+                                                    @foreach ($assignment['status_labels'] as $status)
+                                                        @php
+                                                            $statusColor = match (mb_strtolower(rtrim(trim($status), '.'))) {
+                                                                'stop' => 'red',
+                                                                'vrij', 'vakantie' => 'yellow',
+                                                                'no show' => 'purple',
+                                                                default => 'blue',
+                                                            };
+                                                        @endphp
+                                                        <div class="worker-status worker-status-{{ $statusColor }}">{{ $status }}</div>
+                                                    @endforeach
+                                                    @if ($assignment['has_different_schedule'])
+                                                        <div class="worker-time">{{ $assignment['time_label'] }}</div>
+                                                    @endif
                                                     @if ($assignment['registration'])
                                                         <div>#{{ $assignment['registration'] }}</div>
                                                     @endif
