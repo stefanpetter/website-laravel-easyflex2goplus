@@ -132,6 +132,18 @@ class PlanningCsvImportService
 
     private function importRowsForWeek(array $rows, string $sourceFile, int $isoWeek, int $isoYear): PlanningImport
     {
+        $columns = $rows[0] ?? [];
+        $isExpandedExport = array_key_exists(self::COLUMN_WORKER_START_TIME, $columns)
+            || array_key_exists(self::COLUMN_WORKER_END_TIME, $columns)
+            || array_key_exists(self::COLUMN_ABSENCE_STATUS, $columns);
+
+        if ($isExpandedExport && ! array_key_exists(self::COLUMN_PLANNING_STATUS, $columns)) {
+            throw new RuntimeException(sprintf(
+                'Expanded CSV export is missing "%s". Add this column to the EF2GO Plus uitgebreid export profile and export again. Existing planning data has not been replaced.',
+                self::COLUMN_PLANNING_STATUS
+            ));
+        }
+
         return DB::transaction(function () use ($rows, $sourceFile, $isoWeek, $isoYear) {
             // Key on week/year only so re-importing the same week (from any file) always
             // updates the single record for that week and never touches other weeks.
@@ -234,6 +246,9 @@ class PlanningCsvImportService
                     mb_strtolower((string) $workerName),
                     $assignmentStartTime,
                     $assignmentEndTime,
+                    $this->clean($row[self::COLUMN_WORKER_STATUS] ?? null),
+                    $this->clean($row[self::COLUMN_PLANNING_STATUS] ?? null),
+                    $this->clean($row[self::COLUMN_ABSENCE_STATUS] ?? null),
                 ]));
 
                 if (isset($assignmentDedup[$assignmentKey])) {

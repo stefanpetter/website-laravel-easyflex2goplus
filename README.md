@@ -40,8 +40,17 @@ After running `./vendor/bin/sail artisan migrate`, run:
 ```
 
 This checks individual worker schedules, duplicates, overnight shifts, calendar
-rendering, person-card statuses, and older CSV exports. Fixture database changes
-are rolled back.
+rendering, person-card statuses, custom events, incomplete expanded exports, and
+older CSV exports. Fixture database changes are rolled back.
+
+## Export Profile Compatibility
+
+The `EF2GO Plus uitgebreid` profile must include `Ingeplande entiteiten - Status`
+alongside the individual-time and absence columns. The previous release's profile
+omitted this column. Add it in Easyflex and re-export/re-import affected weeks to
+restore vacation and event statuses. Incomplete expanded exports are rejected
+without replacing existing planning data. Individual schedules and colored
+status labels remain enabled.
 
 ## If Docker Fails in WSL2
 
@@ -66,4 +75,3 @@ docker compose version
 ```bash
 ./vendor/bin/sail up -d
 ```
-
