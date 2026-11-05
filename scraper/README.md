@@ -98,10 +98,16 @@ workers remain in their parent shift and differing times appear beside their nam
 in the calendar. Older exports without these columns use the parent shift times.
 `Ingeplande entiteiten - Afwezigheid` is stored per assignment and shown on the
 person card, including vacation, leave, reserve, illness, and no-show statuses.
-Exceptional worker/planning statuses such as `Stop` also appear; routine `Actief`
+Worker/planning statuses, including custom event labels, also appear; routine `Actief`
 labels are hidden. Older exports without absence data remain compatible.
-The expanded profile includes `Functienaam`. Keep `Ingeplande entiteiten - Status`
-in the profile if planning statuses are required; the inspected profile omits it.
+The expanded profile must retain `Functienaam` and
+`Ingeplande entiteiten - Status` as well as the new individual-time and absence
+columns. The profile used in the previous release omitted the planning-status
+column, so vacations and events recorded there were lost on import. Add it to
+`EF2GO Plus uitgebreid` in Easyflex, then download and upload both weeks again.
+Changing only the profile name or deploying the application cannot recover
+values absent from an export. Expanded CSVs missing this column are now rejected
+before replacing existing planning data. A blank status value is allowed.
 
 
 ## 7) Upload CSV (POST)

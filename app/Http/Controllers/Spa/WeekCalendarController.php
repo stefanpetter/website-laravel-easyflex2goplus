@@ -195,9 +195,7 @@ class WeekCalendarController extends Controller
                         'worker' => $assignment->worker_status,
                         'planning' => $assignment->planning_status,
                     ])->filter(fn (?string $status, string $source): bool => filled($status) && (
-                        $source === 'absence' || in_array(Str::lower(rtrim(trim($status), '.')), [
-                            'vakantie', 'vrij', 'reserve', 'stop', 'ziek', 'no show',
-                        ], true)
+                        $source === 'absence' || Str::lower(rtrim(trim($status), '.')) !== 'actief'
                     ))->map(fn (string $status): string => trim($status))
                         ->unique(fn (string $status): string => Str::lower(rtrim($status, '.')))
                         ->values()
