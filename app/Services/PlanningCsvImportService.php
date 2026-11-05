@@ -7,6 +7,7 @@ use App\Models\PlanningShift;
 use App\Models\PlanningShiftAssignment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use SplFileObject;
@@ -132,19 +133,21 @@ class PlanningCsvImportService
 
     private function importRowsForWeek(array $rows, string $sourceFile, int $isoWeek, int $isoYear): PlanningImport
     {
-        $columns = $rows[0] ?? [];
-        $isExpandedExport = array_key_exists(self::COLUMN_WORKER_START_TIME, $columns)
-            || array_key_exists(self::COLUMN_WORKER_END_TIME, $columns)
-            || array_key_exists(self::COLUMN_ABSENCE_STATUS, $columns);
+        $statusColumns = [
+            'worker_status' => self::COLUMN_WORKER_STATUS,
+            'planning_status' => self::COLUMN_PLANNING_STATUS,
+            'absence_status' => self::COLUMN_ABSENCE_STATUS,
+        ];
+        $statusSummary = [];
 
-        if ($isExpandedExport && ! array_key_exists(self::COLUMN_PLANNING_STATUS, $columns)) {
-            throw new RuntimeException(sprintf(
-                'Expanded CSV export is missing "%s". Add this column to the EF2GO Plus uitgebreid export profile and export again. Existing planning data has not been replaced.',
-                self::COLUMN_PLANNING_STATUS
-            ));
+        foreach ($statusColumns as $field => $column) {
+            $statusSummary[$field] = [
+                'column_present' => array_key_exists($column, $rows[0] ?? []),
+                'assignments_with_value' => 0,
+            ];
         }
 
-        return DB::transaction(function () use ($rows, $sourceFile, $isoWeek, $isoYear) {
+        $import = DB::transaction(function () use ($rows, $sourceFile, $isoWeek, $isoYear, $statusColumns, &$statusSummary) {
             // Key on week/year only so re-importing the same week (from any file) always
             // updates the single record for that week and never touches other weeks.
             $import = PlanningImport::query()->firstOrNew([
@@ -269,6 +272,12 @@ class PlanningCsvImportService
 
                 $assignmentDedup[$assignmentKey] = true;
                 $assignmentCount++;
+
+                foreach ($statusColumns as $field => $column) {
+                    if ($this->clean($row[$column] ?? null) !== null) {
+                        $statusSummary[$field]['assignments_with_value']++;
+                    }
+                }
             }
 
             if ($assignmentCount === 0) {
@@ -288,6 +297,22 @@ class PlanningCsvImportService
 
             return $import;
         });
+
+        $context = [
+            'import_id' => $import->id,
+            'iso_week' => $isoWeek,
+            'iso_year' => $isoYear,
+            'assignment_count' => $import->assignment_count,
+            'statuses' => $statusSummary,
+        ];
+
+        Log::info('Planning CSV imported: status summary.', $context);
+
+        if (! $statusSummary['planning_status']['column_present']) {
+            Log::warning('Planning CSV has no planning-status column; only available statuses were imported.', $context);
+        }
+
+        return $import;
     }
 
     /**
