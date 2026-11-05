@@ -45,12 +45,22 @@ older CSV exports. Fixture database changes are rolled back.
 
 ## Export Profile Compatibility
 
-The `EF2GO Plus uitgebreid` profile must include `Ingeplande entiteiten - Status`
-alongside the individual-time and absence columns. The previous release's profile
-omitted this column. Add it in Easyflex and re-export/re-import affected weeks to
-restore vacation and event statuses. Incomplete expanded exports are rejected
-without replacing existing planning data. Individual schedules and colored
-status labels remain enabled.
+The `EF2GO Plus uitgebreid` profile should include `Ingeplande entiteiten - Status`
+alongside the individual-time and absence columns. Exports without it still import
+individual schedules, absence statuses, and worker statuses, but cannot provide
+planning statuses such as vacation and events. Add the column in Easyflex and
+re-export/re-import affected weeks to restore those labels.
+
+Each successful import logs a `Planning CSV imported: status summary.` entry with
+the week, assignment count, status-column presence, and counts of assignments
+with each status field populated. Missing planning-status columns also generate
+a warning. These diagnostics contain no worker names or status values.
+If labels disappear after a scheduled import, compare these entries around that
+time: a missing column or a drop to zero populated values points to the export,
+while populated imported fields require checking the calendar's rendering.
+Routine `Actief` values are intentionally hidden, so populated fields alone do
+not guarantee visible labels. Redeploying cannot restore values absent from the
+CSV; correct the export profile and re-import the affected weeks.
 
 ## If Docker Fails in WSL2
 

@@ -4,11 +4,17 @@ use App\Models\PlanningShift;
 use App\Services\PlanningCsvImportService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 require __DIR__.'/../vendor/autoload.php';
 $app = require __DIR__.'/../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
+
+$statusLogs = [];
+Log::listen(static function (Illuminate\Log\Events\MessageLogged $event) use (&$statusLogs): void {
+    $statusLogs[] = $event;
+});
 
 $check = static function (bool $condition, string $message): void {
     if (! $condition) {
@@ -119,21 +125,32 @@ try {
     }
     $check(! str_contains($eventHtml, 'Actief'), 'Custom events do not restore routine active labels');
 
-    $incomplete = $event;
+    $incomplete = array_replace($event, [
+        'Ingeplande entiteiten - Afwezigheid' => 'Vakantie',
+        'Ingeplande entiteiten - Flexwerker - Status' => 'Opleiding',
+    ]);
     unset($incomplete['Ingeplande entiteiten - Status']);
     $writeRows([$incomplete]);
-    $rejected = false;
-    try {
-        $service->importFromStoredPath($storedPath, (int) $date->format('W'), (int) $date->format('o'));
-    } catch (RuntimeException $exception) {
-        $rejected = str_contains($exception->getMessage(), 'missing "Ingeplande entiteiten - Status"');
-    }
-    $check($rejected, 'Expanded exports without the planning-status column fail explicitly');
-    $check($eventImport->fresh()->assignment_count === 3 && $controller->weekData($request)->getData(true)['html'] === $eventHtml, 'Rejected exports leave the existing week and its events unchanged');
+    $partialImport = $service->importFromStoredPath($storedPath, (int) $date->format('W'), (int) $date->format('o'));
+    $partialHtml = $controller->weekData($request)->getData(true)['html'];
+    $check($partialImport->assignment_count === 1, 'Expanded exports without the planning-status column still import');
+    $check(str_contains($partialHtml, 'Vakantie') && str_contains($partialHtml, 'Opleiding'), 'Available absence and worker statuses display without planning status');
+    $warning = $statusLogs[array_key_last($statusLogs)];
+    $check($warning->level === 'warning' && $warning->context['statuses'] === [
+        'worker_status' => ['column_present' => true, 'assignments_with_value' => 1],
+        'planning_status' => ['column_present' => false, 'assignments_with_value' => 0],
+        'absence_status' => ['column_present' => true, 'assignments_with_value' => 1],
+    ], 'Missing planning-status columns produce a warning with imported status counts');
+    $check(! str_contains(json_encode($warning->context), $base['Ingeplande entiteiten - Flexwerker - Naam']), 'Status diagnostics do not include worker names');
 
     $writeRows([array_replace($event, ['Ingeplande entiteiten - Status' => ''])]);
     $emptyStatusImport = $service->importFromStoredPath($storedPath, (int) $date->format('W'), (int) $date->format('o'));
     $check($emptyStatusImport->assignment_count === 1, 'Expanded exports with a present but blank planning-status column remain valid');
+    $summary = $statusLogs[array_key_last($statusLogs)];
+    $check($summary->level === 'info' && $summary->context['statuses']['planning_status'] === [
+        'column_present' => true,
+        'assignments_with_value' => 0,
+    ], 'Status diagnostics distinguish blank planning-status values from a missing column');
 
     $legacy = $base;
     unset($legacy['Ingeplande entiteiten - Starttijd'], $legacy['Ingeplande entiteiten - Eindtijd'], $legacy['Ingeplande entiteiten - Afwezigheid'], $legacy['Ingeplande entiteiten - Status']);
